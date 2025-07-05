@@ -4,18 +4,21 @@ import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useClient } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
 import ClientModal from './ClientModal';
 
 const { FiPlus, FiUser, FiTrendingUp, FiFileText, FiCalculator, FiCreditCard } = FiIcons;
 
 function Dashboard() {
   const { state, dispatch } = useClient();
+  const { user, isAdmin } = useAuth();
   const [showClientModal, setShowClientModal] = useState(false);
 
   const handleAddClient = (clientData) => {
     const newClient = {
       id: Date.now().toString(),
       ...clientData,
+      userId: user.id, // Associate client with current user
       createdAt: new Date().toISOString(),
     };
     dispatch({ type: 'ADD_CLIENT', payload: newClient });
@@ -28,6 +31,13 @@ function Dashboard() {
     }
   };
 
+  // Get user-specific stats
+  const userStats = {
+    totalClients: state.clients.length,
+    totalAnalyses: state.analyses.length,
+    recentClients: state.clients.slice(-5).reverse(),
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
@@ -37,19 +47,72 @@ function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Financial Analysis Dashboard
-          </h1>
-          <p className="text-lg text-gray-600">
-            Manage client profiles and create comprehensive financial analyses
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                Welcome back, {user?.firstName}!
+              </h1>
+              <p className="text-lg text-gray-600">
+                {isAdmin() ? 'Admin Dashboard - ' : ''}Financial Analysis Platform
+              </p>
+            </div>
+            {isAdmin() && (
+              <Link
+                to="/admin"
+                className="flex items-center space-x-2 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <SafeIcon icon={FiIcons.FiShield} />
+                <span>Admin Panel</span>
+              </Link>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Stats Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+        >
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Your Clients</p>
+                <p className="text-3xl font-bold text-blue-600">{userStats.totalClients}</p>
+              </div>
+              <SafeIcon icon={FiUser} className="text-3xl text-blue-500" />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Analyses Created</p>
+                <p className="text-3xl font-bold text-green-600">{userStats.totalAnalyses}</p>
+              </div>
+              <SafeIcon icon={FiTrendingUp} className="text-3xl text-green-500" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Role</p>
+                <p className="text-lg font-bold text-purple-600">
+                  {isAdmin() ? 'Administrator' : 'Financial Professional'}
+                </p>
+              </div>
+              <SafeIcon icon={isAdmin() ? FiIcons.FiShield : FiIcons.FiBriefcase} className="text-3xl text-purple-500" />
+            </div>
+          </div>
         </motion.div>
 
         {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.2 }}
           className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
         >
           <Link to="/life-insurance" className="group">
@@ -102,13 +165,13 @@ function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.3 }}
           className="bg-white rounded-xl shadow-lg overflow-hidden"
         >
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold text-gray-900">
-                Client Profiles
+                Your Client Profiles
               </h2>
               <span className="text-sm text-gray-500">
                 {state.clients.length} clients
