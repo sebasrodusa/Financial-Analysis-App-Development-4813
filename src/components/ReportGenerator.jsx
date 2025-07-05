@@ -3,11 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ReactECharts from 'echarts-for-react';
 import { useReactToPrint } from 'react-to-print';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { pdf } from '@react-pdf/renderer';
+import { saveAs } from 'file-saver';
+import * as echarts from 'echarts';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useClient } from '../context/ClientContext';
+import PDFReport from './PDFReport';
 
 const { FiArrowLeft, FiDownload, FiPrinter, FiFileText, FiTarget, FiShield } = FiIcons;
 
@@ -16,6 +18,8 @@ function ReportGenerator() {
   const { state } = useClient();
   const [client, setClient] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [chartImages, setChartImages] = useState({});
   const reportRef = useRef();
 
   useEffect(() => {
@@ -30,21 +34,461 @@ function ReportGenerator() {
     documentTitle: `Financial Report - ${client?.firstName} ${client?.lastName}`,
   });
 
+  // Enhanced chart generation for PDF with better visibility
+  const generateChartImages = async () => {
+    if (!analysis) return {};
+
+    const images = {};
+    
+    try {
+      // Create temporary chart container with specific styling
+      const chartContainer = document.createElement('div');
+      chartContainer.style.width = '800px';
+      chartContainer.style.height = '600px';
+      chartContainer.style.position = 'absolute';
+      chartContainer.style.left = '-10000px';
+      chartContainer.style.top = '-10000px';
+      chartContainer.style.backgroundColor = '#ffffff';
+      document.body.appendChild(chartContainer);
+
+      // Generate Income Chart
+      const incomeChart = echarts.init(chartContainer, null, {
+        renderer: 'canvas',
+        useDirtyRect: false
+      });
+      
+      incomeChart.setOption(getPDFIncomeChartOption());
+      await new Promise(resolve => setTimeout(resolve, 500)); // Longer wait for full render
+      images.income = incomeChart.getDataURL({
+        type: 'png',
+        pixelRatio: 3,
+        backgroundColor: '#ffffff'
+      });
+
+      // Generate Expenses Chart
+      incomeChart.clear();
+      incomeChart.setOption(getPDFExpensesChartOption());
+      await new Promise(resolve => setTimeout(resolve, 500));
+      images.expenses = incomeChart.getDataURL({
+        type: 'png',
+        pixelRatio: 3,
+        backgroundColor: '#ffffff'
+      });
+
+      // Generate Assets Chart
+      incomeChart.clear();
+      incomeChart.setOption(getPDFAssetsChartOption());
+      await new Promise(resolve => setTimeout(resolve, 500));
+      images.assets = incomeChart.getDataURL({
+        type: 'png',
+        pixelRatio: 3,
+        backgroundColor: '#ffffff'
+      });
+
+      // Generate Net Worth Chart
+      incomeChart.clear();
+      incomeChart.setOption(getPDFNetWorthChartOption());
+      await new Promise(resolve => setTimeout(resolve, 500));
+      images.netWorth = incomeChart.getDataURL({
+        type: 'png',
+        pixelRatio: 3,
+        backgroundColor: '#ffffff'
+      });
+
+      // Cleanup
+      incomeChart.dispose();
+      document.body.removeChild(chartContainer);
+
+      console.log('Generated chart images:', Object.keys(images));
+
+    } catch (error) {
+      console.error('Error generating chart images:', error);
+    }
+
+    return images;
+  };
+
+  // PDF-specific chart options with enhanced visibility
+  const getPDFIncomeChartOption = () => {
+    if (!analysis) return {};
+    
+    const data = [
+      { value: analysis.income.primaryIncome, name: 'Primary Income' },
+      { value: analysis.income.spouseIncome, name: 'Spouse Income' },
+      { value: analysis.income.otherIncome, name: 'Other Income' }
+    ].filter(item => item.value > 0);
+
+    return {
+      backgroundColor: '#ffffff',
+      title: {
+        text: 'Income Breakdown',
+        left: 'center',
+        top: 20,
+        textStyle: {
+          fontSize: 24,
+          fontWeight: 'bold',
+          color: '#1F2937'
+        }
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: ${c} ({d}%)',
+        textStyle: {
+          fontSize: 14
+        }
+      },
+      legend: {
+        orient: 'horizontal',
+        bottom: 20,
+        textStyle: {
+          fontSize: 16,
+          color: '#374151'
+        }
+      },
+      series: [
+        {
+          name: 'Income',
+          type: 'pie',
+          radius: ['30%', '70%'],
+          center: ['50%', '55%'],
+          data: data,
+          itemStyle: {
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          },
+          label: {
+            show: true,
+            formatter: '{b}\n${c}',
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: '#1F2937'
+          },
+          labelLine: {
+            show: true,
+            length: 15,
+            length2: 10
+          },
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          },
+          color: ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444']
+        }
+      ]
+    };
+  };
+
+  const getPDFExpensesChartOption = () => {
+    if (!analysis) return {};
+    
+    const data = [
+      { value: analysis.expenses.housing, name: 'Housing' },
+      { value: analysis.expenses.transportation, name: 'Transportation' },
+      { value: analysis.expenses.food, name: 'Food' },
+      { value: analysis.expenses.healthcare, name: 'Healthcare' },
+      { value: analysis.expenses.insurance, name: 'Insurance' },
+      { value: analysis.expenses.utilities, name: 'Utilities' },
+      { value: analysis.expenses.entertainment, name: 'Entertainment' },
+      { value: analysis.expenses.other, name: 'Other' }
+    ].filter(item => item.value > 0);
+
+    return {
+      backgroundColor: '#ffffff',
+      title: {
+        text: 'Expenses Breakdown',
+        left: 'center',
+        top: 20,
+        textStyle: {
+          fontSize: 24,
+          fontWeight: 'bold',
+          color: '#1F2937'
+        }
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: ${c} ({d}%)',
+        textStyle: {
+          fontSize: 14
+        }
+      },
+      legend: {
+        orient: 'horizontal',
+        bottom: 20,
+        textStyle: {
+          fontSize: 16,
+          color: '#374151'
+        }
+      },
+      series: [
+        {
+          name: 'Expenses',
+          type: 'pie',
+          radius: ['30%', '70%'],
+          center: ['50%', '55%'],
+          data: data,
+          itemStyle: {
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          },
+          label: {
+            show: true,
+            formatter: '{b}\n${c}',
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: '#1F2937'
+          },
+          labelLine: {
+            show: true,
+            length: 15,
+            length2: 10
+          },
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          },
+          color: ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316']
+        }
+      ]
+    };
+  };
+
+  const getPDFAssetsChartOption = () => {
+    if (!analysis) return {};
+    
+    const data = [
+      { value: analysis.assets.cash, name: 'Cash' },
+      { value: analysis.assets.investments, name: 'Investments' },
+      { value: analysis.assets.retirement, name: 'Retirement' },
+      { value: analysis.assets.realEstate, name: 'Real Estate' },
+      { value: analysis.assets.personal, name: 'Personal' }
+    ].filter(item => item.value > 0);
+
+    return {
+      backgroundColor: '#ffffff',
+      title: {
+        text: 'Assets Breakdown',
+        left: 'center',
+        top: 20,
+        textStyle: {
+          fontSize: 24,
+          fontWeight: 'bold',
+          color: '#1F2937'
+        }
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: ${c} ({d}%)',
+        textStyle: {
+          fontSize: 14
+        }
+      },
+      legend: {
+        orient: 'horizontal',
+        bottom: 20,
+        textStyle: {
+          fontSize: 16,
+          color: '#374151'
+        }
+      },
+      series: [
+        {
+          name: 'Assets',
+          type: 'pie',
+          radius: ['30%', '70%'],
+          center: ['50%', '55%'],
+          data: data,
+          itemStyle: {
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          },
+          label: {
+            show: true,
+            formatter: '{b}\n${c}',
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: '#1F2937'
+          },
+          labelLine: {
+            show: true,
+            length: 15,
+            length2: 10
+          },
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          },
+          color: ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444']
+        }
+      ]
+    };
+  };
+
+  const getPDFNetWorthChartOption = () => {
+    if (!analysis) return {};
+    
+    return {
+      backgroundColor: '#ffffff',
+      title: {
+        text: 'Net Worth Overview',
+        left: 'center',
+        top: 20,
+        textStyle: {
+          fontSize: 24,
+          fontWeight: 'bold',
+          color: '#1F2937'
+        }
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        },
+        formatter: function(params) {
+          return params.map(param => `${param.seriesName}: $${param.value.toLocaleString()}`).join('<br/>');
+        },
+        textStyle: {
+          fontSize: 14
+        }
+      },
+      legend: {
+        data: ['Assets', 'Liabilities'],
+        bottom: 20,
+        textStyle: {
+          fontSize: 16,
+          color: '#374151'
+        }
+      },
+      grid: {
+        left: '10%',
+        right: '10%',
+        bottom: '20%',
+        top: '20%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        data: ['Financial Position'],
+        axisLabel: {
+          fontSize: 16,
+          color: '#374151'
+        },
+        axisLine: {
+          lineStyle: {
+            color: '#9CA3AF'
+          }
+        }
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: {
+          formatter: function(value) {
+            return '$' + (value / 1000).toFixed(0) + 'K';
+          },
+          fontSize: 14,
+          color: '#374151'
+        },
+        axisLine: {
+          lineStyle: {
+            color: '#9CA3AF'
+          }
+        },
+        splitLine: {
+          lineStyle: {
+            color: '#E5E7EB'
+          }
+        }
+      },
+      series: [
+        {
+          name: 'Assets',
+          type: 'bar',
+          data: [analysis.assets.totalAssets],
+          itemStyle: {
+            color: '#10B981',
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          },
+          barWidth: '40%',
+          label: {
+            show: true,
+            position: 'top',
+            formatter: '${c}',
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: '#1F2937'
+          }
+        },
+        {
+          name: 'Liabilities',
+          type: 'bar',
+          data: [analysis.liabilities.totalLiabilities],
+          itemStyle: {
+            color: '#EF4444',
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          },
+          barWidth: '40%',
+          label: {
+            show: true,
+            position: 'top',
+            formatter: '${c}',
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: '#1F2937'
+          }
+        }
+      ]
+    };
+  };
+
   const handleDownloadPDF = async () => {
-    const element = reportRef.current;
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-    });
+    // Ensure we have both client and analysis data before proceeding
+    if (!client || !analysis) {
+      alert('Missing client or analysis data. Please ensure both are loaded before generating PDF.');
+      return;
+    }
 
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    // Additional validation to ensure data is properly structured
+    if (!client.firstName || !client.lastName || !client.email) {
+      alert('Incomplete client data. Please ensure client information is complete.');
+      return;
+    }
 
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`Financial_Report_${client?.firstName}_${client?.lastName}.pdf`);
+    if (!analysis.income || !analysis.expenses || !analysis.assets || !analysis.liabilities) {
+      alert('Incomplete analysis data. Please ensure financial analysis is complete.');
+      return;
+    }
+    
+    setIsGeneratingPDF(true);
+    
+    try {
+      console.log('Generating chart images...');
+      const chartImagesData = await generateChartImages();
+      setChartImages(chartImagesData);
+      
+      console.log('Generated chart images with keys:', Object.keys(chartImagesData));
+      
+      // Generate PDF using react-pdf
+      const blob = await pdf(<PDFReport client={client} analysis={analysis} chartImages={chartImagesData} />).toBlob();
+      
+      // Save the PDF file
+      saveAs(blob, `Financial_Report_${client.firstName}_${client.lastName}.pdf`);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('There was an error generating the PDF. Please check the console for details and try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   const calculateAge = (dateOfBirth) => {
@@ -59,6 +503,7 @@ function ReportGenerator() {
     return age;
   };
 
+  // Regular chart options for web display (unchanged)
   const getIncomeChartOption = () => {
     if (!analysis) return {};
     
@@ -67,8 +512,9 @@ function ReportGenerator() {
         text: 'Income Breakdown',
         left: 'center',
         textStyle: {
-          fontSize: 16,
-          fontWeight: 'bold'
+          fontSize: 18,
+          fontWeight: 'bold',
+          color: '#1F2937'
         }
       },
       tooltip: {
@@ -78,12 +524,14 @@ function ReportGenerator() {
       legend: {
         orient: 'vertical',
         left: 'left',
+        top: 'middle'
       },
       series: [
         {
           name: 'Income',
           type: 'pie',
-          radius: '50%',
+          radius: ['40%', '70%'],
+          center: ['60%', '50%'],
           data: [
             { value: analysis.income.primaryIncome, name: 'Primary Income' },
             { value: analysis.income.spouseIncome, name: 'Spouse Income' },
@@ -95,6 +543,9 @@ function ReportGenerator() {
               shadowOffsetX: 0,
               shadowColor: 'rgba(0, 0, 0, 0.5)'
             }
+          },
+          label: {
+            formatter: '{b}: ${c}'
           }
         }
       ]
@@ -109,8 +560,9 @@ function ReportGenerator() {
         text: 'Expenses Breakdown',
         left: 'center',
         textStyle: {
-          fontSize: 16,
-          fontWeight: 'bold'
+          fontSize: 18,
+          fontWeight: 'bold',
+          color: '#1F2937'
         }
       },
       tooltip: {
@@ -120,12 +572,14 @@ function ReportGenerator() {
       legend: {
         orient: 'vertical',
         left: 'left',
+        top: 'middle'
       },
       series: [
         {
           name: 'Expenses',
           type: 'pie',
-          radius: '50%',
+          radius: ['40%', '70%'],
+          center: ['60%', '50%'],
           data: [
             { value: analysis.expenses.housing, name: 'Housing' },
             { value: analysis.expenses.transportation, name: 'Transportation' },
@@ -142,6 +596,9 @@ function ReportGenerator() {
               shadowOffsetX: 0,
               shadowColor: 'rgba(0, 0, 0, 0.5)'
             }
+          },
+          label: {
+            formatter: '{b}: ${c}'
           }
         }
       ]
@@ -156,27 +613,38 @@ function ReportGenerator() {
         text: 'Net Worth Overview',
         left: 'center',
         textStyle: {
-          fontSize: 16,
-          fontWeight: 'bold'
+          fontSize: 18,
+          fontWeight: 'bold',
+          color: '#1F2937'
         }
       },
       tooltip: {
         trigger: 'axis',
         axisPointer: {
           type: 'shadow'
+        },
+        formatter: function(params) {
+          return params.map(param => `${param.seriesName}: $${param.value.toLocaleString()}`).join('<br/>');
         }
       },
       legend: {
-        data: ['Assets', 'Liabilities']
+        data: ['Assets', 'Liabilities'],
+        top: 'bottom'
       },
       xAxis: {
         type: 'category',
-        data: ['Financial Position']
+        data: ['Financial Position'],
+        axisLabel: {
+          fontSize: 14
+        }
       },
       yAxis: {
         type: 'value',
         axisLabel: {
-          formatter: '${value}'
+          formatter: function(value) {
+            return '$' + (value / 1000) + 'K';
+          },
+          fontSize: 12
         }
       },
       series: [
@@ -186,7 +654,8 @@ function ReportGenerator() {
           data: [analysis.assets.totalAssets],
           itemStyle: {
             color: '#10B981'
-          }
+          },
+          barWidth: '40%'
         },
         {
           name: 'Liabilities',
@@ -194,7 +663,8 @@ function ReportGenerator() {
           data: [analysis.liabilities.totalLiabilities],
           itemStyle: {
             color: '#EF4444'
-          }
+          },
+          barWidth: '40%'
         }
       ]
     };
@@ -208,8 +678,9 @@ function ReportGenerator() {
         text: 'Assets Breakdown',
         left: 'center',
         textStyle: {
-          fontSize: 16,
-          fontWeight: 'bold'
+          fontSize: 18,
+          fontWeight: 'bold',
+          color: '#1F2937'
         }
       },
       tooltip: {
@@ -219,12 +690,14 @@ function ReportGenerator() {
       legend: {
         orient: 'vertical',
         left: 'left',
+        top: 'middle'
       },
       series: [
         {
           name: 'Assets',
           type: 'pie',
-          radius: '50%',
+          radius: ['40%', '70%'],
+          center: ['60%', '50%'],
           data: [
             { value: analysis.assets.cash, name: 'Cash' },
             { value: analysis.assets.investments, name: 'Investments' },
@@ -238,6 +711,9 @@ function ReportGenerator() {
               shadowOffsetX: 0,
               shadowColor: 'rgba(0, 0, 0, 0.5)'
             }
+          },
+          label: {
+            formatter: '{b}: ${c}'
           }
         }
       ]
@@ -300,10 +776,11 @@ function ReportGenerator() {
               </button>
               <button
                 onClick={handleDownloadPDF}
-                className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                disabled={isGeneratingPDF}
+                className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <SafeIcon icon={FiDownload} />
-                <span>Download PDF</span>
+                <span>{isGeneratingPDF ? 'Generating...' : 'Download PDF'}</span>
               </button>
             </div>
           </div>
