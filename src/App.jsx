@@ -4,6 +4,10 @@ import { motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ClientProvider } from './context/ClientContext';
 import Login from './components/Login';
+import SignUp from './components/SignUp';
+import EmailLogin from './components/EmailLogin';
+import QuestLogin from './components/QuestLogin';
+import QuestOnboarding from './components/QuestOnboarding';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import ClientProfile from './components/ClientProfile';
@@ -25,7 +29,7 @@ const QuestProvider = React.lazy(() =>
 );
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, needsOnboarding } = useAuth();
 
   if (isLoading) {
     return (
@@ -38,6 +42,11 @@ function AppContent() {
     );
   }
 
+  // Show onboarding if user needs it
+  if (isAuthenticated && needsOnboarding) {
+    return <QuestOnboarding />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {isAuthenticated && <Navbar />}
@@ -48,79 +57,89 @@ function AppContent() {
       >
         <Routes>
           {/* Public Routes */}
-          <Route 
-            path="/login" 
-            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
+          <Route
+            path="/login"
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
+          />
+          <Route
+            path="/signup"
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignUp />}
+          />
+          <Route
+            path="/email-login"
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <EmailLogin />}
+          />
+          <Route
+            path="/quest-login"
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <QuestLogin />}
+          />
+          <Route
+            path="/onboarding"
+            element={isAuthenticated ? <QuestOnboarding /> : <Navigate to="/login" replace />}
           />
 
           {/* Protected Routes */}
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/admin" 
+          <Route
+            path="/admin"
             element={
               <ProtectedRoute adminOnly>
                 <AdminDashboard />
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/client/:id" 
+          <Route
+            path="/client/:id"
             element={
               <ProtectedRoute>
                 <ClientProfile />
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/analysis/:id" 
+          <Route
+            path="/analysis/:id"
             element={
               <ProtectedRoute>
                 <FinancialAnalysis />
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/report/:id" 
+          <Route
+            path="/report/:id"
             element={
               <ProtectedRoute>
                 <ReportGenerator />
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/life-insurance" 
+          <Route
+            path="/life-insurance"
             element={
               <ProtectedRoute>
                 <LifeInsuranceCalculator />
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/debt-stacking" 
+          <Route
+            path="/debt-stacking"
             element={
               <ProtectedRoute>
                 <DebtStackingCalculator />
               </ProtectedRoute>
-            } 
+            }
           />
 
           {/* Default redirect */}
-          <Route 
-            path="/" 
-            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} 
+          <Route
+            path="/"
+            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
           />
         </Routes>
       </motion.div>
@@ -147,11 +166,13 @@ function App() {
   const questConfig = getQuestConfig();
 
   return (
-    <React.Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    }>
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
       {questConfig ? (
         <QuestProvider {...questConfig}>
           <AuthProvider>

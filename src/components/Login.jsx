@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
 
-const { FiMail, FiLock, FiEye, FiEyeOff, FiTrendingUp } = FiIcons;
+const { FiMail, FiLock, FiEye, FiEyeOff, FiTrendingUp, FiKey } = FiIcons;
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -30,6 +31,15 @@ function Login() {
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleDemoLogin = async (email, password) => {
+    setFormData({ email, password });
+    setError('');
+    const result = await login(email, password);
+    if (!result.success) {
+      setError(result.error);
+    }
   };
 
   return (
@@ -58,6 +68,26 @@ function Login() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to ProsperTrack™</h1>
           <p className="text-gray-600">Professional Financial Analysis Platform</p>
+        </div>
+
+        {/* Login Options */}
+        <div className="space-y-4 mb-8">
+          <Link
+            to="/email-login"
+            className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300"
+          >
+            <SafeIcon icon={FiKey} />
+            <span>Sign in with Email Code</span>
+          </Link>
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with password</span>
+            </div>
+          </div>
         </div>
 
         {/* Login Form */}
@@ -126,6 +156,34 @@ function Login() {
             )}
           </button>
         </form>
+
+        {/* Demo Login Buttons */}
+        <div className="mt-8 space-y-3">
+          <div className="text-center text-sm text-gray-500 mb-4">
+            Quick Demo Access:
+          </div>
+          
+          <button
+            onClick={() => handleDemoLogin('sebasrodus+admin@gmail.com', 'admin1234')}
+            disabled={isLoading}
+            className="w-full bg-red-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Login as Admin
+          </button>
+          
+          <button
+            onClick={() => handleDemoLogin('advisor@prospertrack.com', 'advisor123')}
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Login as Financial Advisor
+          </button>
+        </div>
+
+        {/* Sign Up Link */}
+        <div className="mt-8 text-center text-sm text-gray-500">
+          <p>Don't have an account? <Link to="/signup" className="text-blue-600 hover:text-blue-800 font-medium">Create one here</Link></p>
+        </div>
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
