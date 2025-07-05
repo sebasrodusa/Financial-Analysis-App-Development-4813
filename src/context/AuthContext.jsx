@@ -6,6 +6,7 @@ const initialState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  needsOnboarding: false,
   users: [
     // Default admin user
     {
@@ -17,7 +18,8 @@ const initialState = {
       role: 'admin',
       createdAt: new Date().toISOString(),
       isActive: true,
-      permissions: ['all']
+      permissions: ['all'],
+      hasCompletedOnboarding: true
     },
     // Sample financial professional
     {
@@ -29,7 +31,8 @@ const initialState = {
       role: 'financial_professional',
       createdAt: new Date().toISOString(),
       isActive: true,
-      permissions: ['clients', 'analyses', 'reports']
+      permissions: ['clients', 'analyses', 'reports'],
+      hasCompletedOnboarding: false
     }
   ]
 };
@@ -41,14 +44,26 @@ function authReducer(state, action) {
         ...state,
         user: action.payload,
         isAuthenticated: true,
-        isLoading: false
+        isLoading: false,
+        needsOnboarding: !action.payload.hasCompletedOnboarding
       };
     case 'LOGOUT':
       return {
         ...state,
         user: null,
         isAuthenticated: false,
-        isLoading: false
+        isLoading: false,
+        needsOnboarding: false
+      };
+    case 'COMPLETE_ONBOARDING':
+      const updatedUser = { ...state.user, hasCompletedOnboarding: true };
+      return {
+        ...state,
+        user: updatedUser,
+        needsOnboarding: false,
+        users: state.users.map(user => 
+          user.id === updatedUser.id ? updatedUser : user
+        )
       };
     case 'SET_LOADING':
       return {
@@ -63,7 +78,7 @@ function authReducer(state, action) {
     case 'UPDATE_USER':
       return {
         ...state,
-        users: state.users.map(user => 
+        users: state.users.map(user =>
           user.id === action.payload.id ? action.payload : user
         )
       };
@@ -91,7 +106,6 @@ const safeGetFromStorage = (key, fallback = null) => {
     return JSON.parse(item);
   } catch (error) {
     console.warn(`Error parsing localStorage item "${key}":`, error);
-    // Clear corrupted data
     try {
       localStorage.removeItem(key);
     } catch (e) {
@@ -137,7 +151,7 @@ export function AuthProvider({ children }) {
   // Save data to localStorage whenever state changes
   useEffect(() => {
     try {
-      const { user, isAuthenticated, isLoading, ...authData } = state;
+      const { user, isAuthenticated, isLoading, needsOnboarding, ...authData } = state;
       safeSetToStorage('authData', authData);
       
       if (user && typeof user === 'object') {
@@ -168,7 +182,7 @@ export function AuthProvider({ children }) {
       if (user) {
         const { password: _, ...userWithoutPassword } = user;
         dispatch({ type: 'LOGIN', payload: userWithoutPassword });
-        return { success: true };
+        return { success: true, user: userWithoutPassword };
       } else {
         dispatch({ type: 'SET_LOADING', payload: false });
         return { success: false, error: 'Invalid credentials' };
@@ -183,12 +197,17 @@ export function AuthProvider({ children }) {
     dispatch({ type: 'LOGOUT' });
   };
 
+  const completeOnboarding = () => {
+    dispatch({ type: 'COMPLETE_ONBOARDING' });
+  };
+
   const addUser = (userData) => {
     const newUser = {
       id: `user-${Date.now()}`,
       ...userData,
       createdAt: new Date().toISOString(),
-      isActive: true
+      isActive: true,
+      hasCompletedOnboarding: false
     };
     dispatch({ type: 'ADD_USER', payload: newUser });
     return newUser;
@@ -217,18 +236,21 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{
-      ...state,
-      dispatch,
-      login,
-      logout,
-      addUser,
-      updateUser,
-      deleteUser,
-      hasPermission,
-      isAdmin,
-      isFinancialProfessional
-    }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        dispatch,
+        login,
+        logout,
+        completeOnboarding,
+        addUser,
+        updateUser,
+        deleteUser,
+        hasPermission,
+        isAdmin,
+        isFinancialProfessional
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

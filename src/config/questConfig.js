@@ -1,5 +1,6 @@
 // Quest configuration with safe defaults
 export const questConfig = {
+  QUEST_ONBOARDING_QUESTID: 'c-greta-onboarding',
   GET_STARTED_QUESTID: 'c-greta-get-started',
   USER_ID: 'u-ff23eada-0109-47c6-b532-8c003e043f9d',
   APIKEY: 'k-01e20326-644b-41ae-a703-65bfe60fc6c1',
@@ -12,7 +13,7 @@ export const questConfig = {
 export const getQuestConfig = () => {
   try {
     // Validate required fields
-    const requiredFields = ['GET_STARTED_QUESTID', 'USER_ID', 'APIKEY', 'ENTITYID'];
+    const requiredFields = ['QUEST_ONBOARDING_QUESTID', 'USER_ID', 'APIKEY', 'ENTITYID'];
     const missingFields = requiredFields.filter(field => !questConfig[field]);
     
     if (missingFields.length > 0) {
