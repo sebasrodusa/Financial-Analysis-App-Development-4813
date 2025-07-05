@@ -61,21 +61,48 @@ function clientReducer(state, action) {
   }
 }
 
+// Safe localStorage operations
+const safeGetFromStorage = (key, fallback = null) => {
+  try {
+    if (typeof window === 'undefined') return fallback;
+    const item = localStorage.getItem(key);
+    if (item === null || item === 'undefined') return fallback;
+    return JSON.parse(item);
+  } catch (error) {
+    console.warn(`Error parsing localStorage item "${key}":`, error);
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn('Could not clear corrupted localStorage item:', e);
+    }
+    return fallback;
+  }
+};
+
+const safeSetToStorage = (key, value) => {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`Error saving to localStorage "${key}":`, error);
+  }
+};
+
 export function ClientProvider({ children }) {
   const [state, dispatch] = useReducer(clientReducer, initialState);
   const { user } = useAuth();
 
-  // Load data from localStorage on mount
+  // Load data from localStorage on mount with error handling
   React.useEffect(() => {
-    const savedData = localStorage.getItem('financialAnalysisData');
-    if (savedData) {
-      dispatch({ type: 'LOAD_DATA', payload: JSON.parse(savedData) });
+    const savedData = safeGetFromStorage('financialAnalysisData', initialState);
+    if (savedData && typeof savedData === 'object') {
+      dispatch({ type: 'LOAD_DATA', payload: savedData });
     }
   }, []);
 
   // Save data to localStorage whenever state changes
   React.useEffect(() => {
-    localStorage.setItem('financialAnalysisData', JSON.stringify(state));
+    safeSetToStorage('financialAnalysisData', state);
   }, [state]);
 
   // Filter data based on user role and permissions

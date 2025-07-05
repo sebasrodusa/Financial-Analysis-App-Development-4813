@@ -10,8 +10,27 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
-   build: {
+  build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          motion: ['framer-motion'],
+          charts: ['echarts', 'echarts-for-react'],
+          pdf: ['@react-pdf/renderer'],
+          icons: ['react-icons']
+        }
+      }
+    }
   },
+  define: {
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
+    exclude: ['@questlabs/react-sdk']
+  }
 });

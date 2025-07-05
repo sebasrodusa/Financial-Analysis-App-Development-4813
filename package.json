@@ -1,8 +1,9 @@
 {
-  "name": "financial-analysis-app",
+  "name": "prospertrack",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "ProsperTrack™ - Professional Financial Analysis Platform",
   "scripts": {
     "dev": "vite",
     "build": "npm run lint && vite build",

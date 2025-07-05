@@ -4,7 +4,7 @@ import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
 
-const { FiMail, FiLock, FiEye, FiEyeOff, FiShield } = FiIcons;
+const { FiMail, FiLock, FiEye, FiEyeOff, FiTrendingUp } = FiIcons;
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -32,11 +32,6 @@ function Login() {
     });
   };
 
-  const demoCredentials = [
-    { role: 'Admin', email: 'admin@financial.com', password: 'admin123' },
-    { role: 'Financial Professional', email: 'advisor@financial.com', password: 'advisor123' }
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <motion.div
@@ -46,23 +41,23 @@ function Login() {
       >
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <SafeIcon icon={FiShield} className="text-2xl text-white" />
+          <div className="w-24 h-24 mx-auto mb-4">
+            <img 
+              src="/prospertrack-logo.png" 
+              alt="ProsperTrack™ Logo" 
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                // Fallback to icon if logo fails to load
+                e.target.style.display = 'none';
+                e.target.nextElementSibling.style.display = 'flex';
+              }}
+            />
+            <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full hidden items-center justify-center">
+              <SafeIcon icon={FiTrendingUp} className="text-4xl text-white" />
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Sign in to your financial dashboard</p>
-        </div>
-
-        {/* Demo Credentials */}
-        <div className="bg-blue-50 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">Demo Credentials:</h3>
-          <div className="space-y-2">
-            {demoCredentials.map((cred, index) => (
-              <div key={index} className="text-xs text-blue-700">
-                <strong>{cred.role}:</strong> {cred.email} / {cred.password}
-              </div>
-            ))}
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to ProsperTrack™</h1>
+          <p className="text-gray-600">Professional Financial Analysis Platform</p>
         </div>
 
         {/* Login Form */}
@@ -134,7 +129,7 @@ function Login() {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          Financial Analysis Platform v2.0
+          ProsperTrack™ Financial Analysis Platform v1.0
         </div>
       </motion.div>
     </div>

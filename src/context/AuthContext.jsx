@@ -10,10 +10,10 @@ const initialState = {
     // Default admin user
     {
       id: 'admin-1',
-      email: 'admin@financial.com',
-      password: 'admin123',
-      firstName: 'System',
-      lastName: 'Administrator',
+      email: 'sebasrodus+admin@gmail.com',
+      password: 'admin1234',
+      firstName: 'Admin',
+      lastName: 'User',
       role: 'admin',
       createdAt: new Date().toISOString(),
       isActive: true,
@@ -22,7 +22,7 @@ const initialState = {
     // Sample financial professional
     {
       id: 'fp-1',
-      email: 'advisor@financial.com',
+      email: 'advisor@prospertrack.com',
       password: 'advisor123',
       firstName: 'John',
       lastName: 'Smith',
@@ -82,36 +82,75 @@ function authReducer(state, action) {
   }
 }
 
+// Safe localStorage operations with error handling
+const safeGetFromStorage = (key, fallback = null) => {
+  try {
+    if (typeof window === 'undefined') return fallback;
+    const item = localStorage.getItem(key);
+    if (item === null || item === 'undefined') return fallback;
+    return JSON.parse(item);
+  } catch (error) {
+    console.warn(`Error parsing localStorage item "${key}":`, error);
+    // Clear corrupted data
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn('Could not clear corrupted localStorage item:', e);
+    }
+    return fallback;
+  }
+};
+
+const safeSetToStorage = (key, value) => {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`Error saving to localStorage "${key}":`, error);
+  }
+};
+
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Load data from localStorage on mount
+  // Load data from localStorage on mount with error handling
   useEffect(() => {
-    const savedAuthData = localStorage.getItem('authData');
-    const savedUser = localStorage.getItem('currentUser');
-    
-    if (savedAuthData) {
-      const authData = JSON.parse(savedAuthData);
-      dispatch({ type: 'LOAD_AUTH_DATA', payload: authData });
-    }
-    
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-      dispatch({ type: 'LOGIN', payload: user });
-    } else {
+    try {
+      const savedAuthData = safeGetFromStorage('authData');
+      const savedUser = safeGetFromStorage('currentUser');
+      
+      if (savedAuthData && typeof savedAuthData === 'object') {
+        dispatch({ type: 'LOAD_AUTH_DATA', payload: savedAuthData });
+      }
+      
+      if (savedUser && typeof savedUser === 'object') {
+        dispatch({ type: 'LOGIN', payload: savedUser });
+      } else {
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    } catch (error) {
+      console.warn('Error loading auth data from localStorage:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, []);
 
   // Save data to localStorage whenever state changes
   useEffect(() => {
-    const { user, isAuthenticated, isLoading, ...authData } = state;
-    localStorage.setItem('authData', JSON.stringify(authData));
-    
-    if (user) {
-      localStorage.setItem('currentUser', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('currentUser');
+    try {
+      const { user, isAuthenticated, isLoading, ...authData } = state;
+      safeSetToStorage('authData', authData);
+      
+      if (user && typeof user === 'object') {
+        safeSetToStorage('currentUser', user);
+      } else {
+        try {
+          localStorage.removeItem('currentUser');
+        } catch (e) {
+          console.warn('Could not remove currentUser from localStorage:', e);
+        }
+      }
+    } catch (error) {
+      console.warn('Error saving auth data to localStorage:', error);
     }
   }, [state]);
 

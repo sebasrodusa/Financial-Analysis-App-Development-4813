@@ -15,6 +15,15 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import './App.css';
 
+// Dynamically import Quest components to avoid SSR issues
+const QuestProvider = React.lazy(() =>
+  import('@questlabs/react-sdk').then(module => ({
+    default: module.QuestProvider
+  })).catch(() => ({
+    default: ({ children }) => children // Fallback component
+  }))
+);
+
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -43,7 +52,7 @@ function AppContent() {
             path="/login" 
             element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
           />
-          
+
           {/* Protected Routes */}
           <Route 
             path="/dashboard" 
@@ -107,7 +116,7 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
-          
+
           {/* Default redirect */}
           <Route 
             path="/" 
@@ -119,15 +128,50 @@ function AppContent() {
   );
 }
 
+// Quest configuration with error handling
+const getQuestConfig = () => {
+  try {
+    const config = {
+      apiKey: 'k-01e20326-644b-41ae-a703-65bfe60fc6c1',
+      entityId: 'e-7a4dcfcd-535e-4d47-9fd2-11d2085767dd',
+      apiType: 'PRODUCTION'
+    };
+    return config;
+  } catch (error) {
+    console.warn('Error getting Quest config:', error);
+    return null;
+  }
+};
+
 function App() {
+  const questConfig = getQuestConfig();
+
   return (
-    <AuthProvider>
-      <ClientProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </ClientProvider>
-    </AuthProvider>
+    <React.Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      {questConfig ? (
+        <QuestProvider {...questConfig}>
+          <AuthProvider>
+            <ClientProvider>
+              <Router>
+                <AppContent />
+              </Router>
+            </ClientProvider>
+          </AuthProvider>
+        </QuestProvider>
+      ) : (
+        <AuthProvider>
+          <ClientProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </ClientProvider>
+        </AuthProvider>
+      )}
+    </React.Suspense>
   );
 }
 
