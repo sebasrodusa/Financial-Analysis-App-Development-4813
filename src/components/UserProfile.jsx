@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
 
-const { FiUser, FiMail, FiPhone, FiBriefcase, FiLock, FiCamera, FiSave, FiEye, FiEyeOff, FiEdit2, FiCheck, FiX } = FiIcons;
+const { FiUser, FiMail, FiPhone, FiBriefcase, FiLock, FiCamera, FiSave, FiEye, FiEyeOff, FiCheck, FiX } = FiIcons;
 
 function UserProfile({ isOpen, onClose }) {
   const { user, updateUser, updateUserEmail, updateUserPassword } = useAuth();
@@ -44,6 +44,25 @@ function UserProfile({ isOpen, onClose }) {
     emailCurrent: false
   });
 
+  // Update form data when user changes
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        phone: user.phone || '',
+        company: user.company || '',
+        bio: user.bio || '',
+        profilePhoto: user.profilePhoto || null
+      });
+      
+      setEmailData({
+        newEmail: user.email || '',
+        currentPassword: ''
+      });
+    }
+  }, [user]);
+
   const clearMessages = () => {
     setSuccess('');
     setError('');
@@ -55,6 +74,10 @@ function UserProfile({ isOpen, onClose }) {
     clearMessages();
 
     try {
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       const updatedUser = {
         ...user,
         ...profileData
@@ -68,6 +91,7 @@ function UserProfile({ isOpen, onClose }) {
         setError(result.error || 'Failed to update profile');
       }
     } catch (error) {
+      console.error('Profile update error:', error);
       setError('An error occurred while updating your profile');
     } finally {
       setIsLoading(false);
@@ -80,13 +104,6 @@ function UserProfile({ isOpen, onClose }) {
     clearMessages();
 
     try {
-      // Validate current password
-      if (emailData.currentPassword !== user.password) {
-        setError('Current password is incorrect');
-        setIsLoading(false);
-        return;
-      }
-
       // Validate new email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(emailData.newEmail)) {
@@ -101,15 +118,22 @@ function UserProfile({ isOpen, onClose }) {
         return;
       }
 
+      if (!emailData.currentPassword) {
+        setError('Current password is required');
+        setIsLoading(false);
+        return;
+      }
+
       const result = await updateUserEmail(emailData.newEmail, emailData.currentPassword);
       if (result.success) {
-        setSuccess('Email updated successfully! Please verify your new email address.');
-        setEmailData({ newEmail: emailData.newEmail, currentPassword: '' });
+        setSuccess('Email updated successfully!');
+        setEmailData({ ...emailData, currentPassword: '' });
         setTimeout(() => setSuccess(''), 3000);
       } else {
         setError(result.error || 'Failed to update email');
       }
     } catch (error) {
+      console.error('Email update error:', error);
       setError('An error occurred while updating your email');
     } finally {
       setIsLoading(false);
@@ -122,9 +146,8 @@ function UserProfile({ isOpen, onClose }) {
     clearMessages();
 
     try {
-      // Validate current password
-      if (passwordData.currentPassword !== user.password) {
-        setError('Current password is incorrect');
+      if (!passwordData.currentPassword) {
+        setError('Current password is required');
         setIsLoading(false);
         return;
       }
@@ -162,6 +185,7 @@ function UserProfile({ isOpen, onClose }) {
         setError(result.error || 'Failed to update password');
       }
     } catch (error) {
+      console.error('Password update error:', error);
       setError('An error occurred while updating your password');
     } finally {
       setIsLoading(false);
@@ -317,7 +341,9 @@ function UserProfile({ isOpen, onClose }) {
                   ) : (
                     <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
                       <span className="text-white text-2xl font-bold">
-                        {profileData.firstName[0]}{profileData.lastName[0]}
+                        {profileData.firstName && profileData.lastName 
+                          ? `${profileData.firstName[0]}${profileData.lastName[0]}`
+                          : 'U'}
                       </span>
                     </div>
                   )}
@@ -473,6 +499,10 @@ function UserProfile({ isOpen, onClose }) {
                   </button>
                 </div>
               </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-yellow-700 text-sm">
+                <p><strong>Note:</strong> For demo users like "admin" and "advisor", the default passwords are "admin1234" and "advisor123" respectively.</p>
+              </div>
             </div>
 
             <div className="flex justify-end mt-8">
@@ -567,6 +597,10 @@ function UserProfile({ isOpen, onClose }) {
                     <SafeIcon icon={showPasswords.confirm ? FiEyeOff : FiEye} />
                   </button>
                 </div>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-yellow-700 text-sm">
+                <p><strong>Note:</strong> For demo users like "admin" and "advisor", the default passwords are "admin1234" and "advisor123" respectively.</p>
               </div>
             </div>
 

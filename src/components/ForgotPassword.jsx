@@ -27,6 +27,7 @@ function ForgotPassword() {
         setError(result.error || 'Failed to send reset email');
       }
     } catch (error) {
+      console.error('Password reset error:', error);
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -50,7 +51,7 @@ function ForgotPassword() {
             Please check your email and follow the instructions to reset your password.
           </p>
           <p className="text-sm text-gray-500 mb-6">
-            Didn't receive the email? Check your spam folder or try again.
+            For demo purposes, the reset link will also be shown in an alert since we don't have a real email system.
           </p>
           <div className="space-y-3">
             <button
@@ -132,6 +133,9 @@ function ForgotPassword() {
               'Send Reset Link'
             )}
           </button>
+          <p className="text-sm text-gray-500 text-center">
+            Note: For demo purposes, the reset link will be displayed in an alert.
+          </p>
         </form>
 
         {/* Footer */}

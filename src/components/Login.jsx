@@ -137,13 +137,22 @@ function Login() {
           </button>
         </form>
 
+        {/* Demo Credentials */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Demo Credentials:</h4>
+          <div className="text-sm text-gray-600 space-y-1">
+            <p><strong>Admin:</strong> sebasrodus+admin@gmail.com / admin1234</p>
+            <p><strong>Advisor:</strong> advisor@prospertrack.com / advisor123</p>
+          </div>
+        </div>
+
         {/* Sign Up Link */}
-        <div className="mt-8 text-center text-sm text-gray-500">
+        <div className="mt-6 text-center text-sm text-gray-500">
           <p>Don't have an account? <Link to="/signup" className="text-blue-600 hover:text-blue-800 font-medium">Create one here</Link></p>
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
+        <div className="mt-6 text-center text-sm text-gray-500">
           ProsperTrack™ Financial Analysis Platform v1.0
         </div>
       </motion.div>

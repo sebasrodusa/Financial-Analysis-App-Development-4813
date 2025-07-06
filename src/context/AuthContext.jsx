@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import supabaseClient from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -144,7 +145,8 @@ const getFromStorage = (key, fallback = null) => {
   try {
     if (typeof window === 'undefined') return fallback;
     const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : fallback;
+    if (!item || item === 'undefined' || item === 'null') return fallback;
+    return JSON.parse(item);
   } catch (error) {
     console.warn(`Error reading from localStorage: ${key}`, error);
     return fallback;
@@ -154,6 +156,10 @@ const getFromStorage = (key, fallback = null) => {
 const saveToStorage = (key, value) => {
   try {
     if (typeof window === 'undefined') return;
+    if (value === undefined || value === null) {
+      localStorage.removeItem(key);
+      return;
+    }
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.warn(`Error saving to localStorage: ${key}`, error);
@@ -171,36 +177,84 @@ export function AuthProvider({ children }) {
 
   // Load data from localStorage on mount
   useEffect(() => {
-    const savedUser = getFromStorage('currentUser');
-    const savedUsers = getFromStorage('allUsers');
-    const savedPasswordResetTokens = getFromStorage('passwordResetTokens', []);
-    const savedEmailVerificationTokens = getFromStorage('emailVerificationTokens', []);
+    const loadData = () => {
+      try {
+        const savedUser = getFromStorage('currentUser');
+        const savedUsers = getFromStorage('allUsers');
+        const savedPasswordResetTokens = getFromStorage('passwordResetTokens', []);
+        const savedEmailVerificationTokens = getFromStorage('emailVerificationTokens', []);
+        
+        // Ensure default users are always available
+        let mergedUsers = savedUsers;
+        
+        // If no saved users or if saved users is not an array, use initial users
+        if (!mergedUsers || !Array.isArray(mergedUsers) || mergedUsers.length === 0) {
+          mergedUsers = initialState.users;
+        } else {
+          // Ensure default admin and demo users are always available
+          const defaultUserEmails = initialState.users.map(u => u.email);
+          const existingEmails = mergedUsers.map(u => u.email);
+          
+          // Add any missing default users
+          initialState.users.forEach(defaultUser => {
+            if (!existingEmails.includes(defaultUser.email)) {
+              mergedUsers.push(defaultUser);
+            }
+          });
+        }
+        
+        // Make sure passwords are preserved
+        mergedUsers = mergedUsers.map(user => {
+          // If user has no password and it's a default user, assign the default password
+          if (!user.password) {
+            const defaultUser = initialState.users.find(u => u.email === user.email);
+            if (defaultUser) {
+              return { ...user, password: defaultUser.password };
+            }
+          }
+          return user;
+        });
 
-    if (savedUsers && Array.isArray(savedUsers)) {
-      dispatch({ type: 'LOAD_USERS', payload: savedUsers });
-    }
+        dispatch({ type: 'LOAD_USERS', payload: mergedUsers });
 
-    if (savedUser) {
-      dispatch({ type: 'LOGIN', payload: savedUser });
-    } else {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
+        if (savedUser) {
+          // Find the matching user in the users array to ensure password is preserved
+          const matchedUser = mergedUsers.find(u => u.id === savedUser.id);
+          if (matchedUser) {
+            dispatch({ type: 'LOGIN', payload: savedUser });
+          } else {
+            dispatch({ type: 'SET_LOADING', payload: false });
+          }
+        } else {
+          dispatch({ type: 'SET_LOADING', payload: false });
+        }
+        
+        // Clean expired tokens on load
+        dispatch({ type: 'CLEAN_EXPIRED_TOKENS' });
+      } catch (error) {
+        console.error('Error loading auth data:', error);
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    };
 
-    // Clean expired tokens on load
-    dispatch({ type: 'CLEAN_EXPIRED_TOKENS' });
+    loadData();
   }, []);
 
   // Save data to localStorage whenever state changes
   useEffect(() => {
-    if (state.user) {
-      saveToStorage('currentUser', state.user);
-    } else {
-      localStorage.removeItem('currentUser');
+    try {
+      if (state.user) {
+        saveToStorage('currentUser', state.user);
+      } else {
+        localStorage.removeItem('currentUser');
+      }
+      
+      saveToStorage('allUsers', state.users);
+      saveToStorage('passwordResetTokens', state.passwordResetTokens);
+      saveToStorage('emailVerificationTokens', state.emailVerificationTokens);
+    } catch (error) {
+      console.error('Error saving auth data:', error);
     }
-    
-    saveToStorage('allUsers', state.users);
-    saveToStorage('passwordResetTokens', state.passwordResetTokens);
-    saveToStorage('emailVerificationTokens', state.emailVerificationTokens);
   }, [state.user, state.users, state.passwordResetTokens, state.emailVerificationTokens]);
 
   // Authentication functions
@@ -213,6 +267,7 @@ export function AuthProvider({ children }) {
       );
 
       if (user) {
+        // Create a copy without the password for the session
         const { password: _, ...userWithoutPassword } = user;
         dispatch({ type: 'LOGIN', payload: userWithoutPassword });
         return { success: true, user: userWithoutPassword };
@@ -247,7 +302,19 @@ export function AuthProvider({ children }) {
   };
 
   const updateUser = (userData) => {
-    dispatch({ type: 'UPDATE_USER', payload: userData });
+    // Find the existing user to preserve the password
+    const existingUser = state.users.find(u => u.id === userData.id);
+    if (!existingUser) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Ensure password is preserved if not explicitly changed
+    const updatedUser = {
+      ...userData,
+      password: userData.password || existingUser.password
+    };
+
+    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
     return { success: true };
   };
 
@@ -257,8 +324,14 @@ export function AuthProvider({ children }) {
       return { success: false, error: 'User not authenticated' };
     }
 
+    // Find the full user object with password
+    const fullUser = state.users.find(u => u.id === state.user.id);
+    if (!fullUser) {
+      return { success: false, error: 'User not found' };
+    }
+
     // Verify current password
-    if (currentPassword !== state.user.password) {
+    if (currentPassword !== fullUser.password) {
       return { success: false, error: 'Current password is incorrect' };
     }
 
@@ -273,7 +346,7 @@ export function AuthProvider({ children }) {
 
     // Update user email
     const updatedUser = {
-      ...state.user,
+      ...fullUser,
       email: newEmail,
       updatedAt: new Date().toISOString()
     };
@@ -287,14 +360,20 @@ export function AuthProvider({ children }) {
       return { success: false, error: 'User not authenticated' };
     }
 
+    // Find the full user object with password
+    const fullUser = state.users.find(u => u.id === state.user.id);
+    if (!fullUser) {
+      return { success: false, error: 'User not found' };
+    }
+
     // Verify current password
-    if (currentPassword !== state.user.password) {
+    if (currentPassword !== fullUser.password) {
       return { success: false, error: 'Current password is incorrect' };
     }
 
     // Update user password
     const updatedUser = {
-      ...state.user,
+      ...fullUser,
       password: newPassword,
       updatedAt: new Date().toISOString()
     };
@@ -329,6 +408,9 @@ export function AuthProvider({ children }) {
     // For demo purposes, we'll show an alert with the reset link
     const resetLink = `${window.location.origin}/#/reset-password?token=${token}`;
     console.log('Password reset link:', resetLink);
+    
+    // Show the reset link to the user since we don't have a real email system
+    alert(`Password Reset Link (since we don't have real email): ${resetLink}`);
     
     // Simulate email sending delay
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -491,6 +573,9 @@ export function AuthProvider({ children }) {
       return { success: false, error: 'Email already registered' };
     }
 
+    // Set a default password that won't be lost
+    const defaultPassword = 'temp123';
+    
     const newUser = {
       id: `user-${Date.now()}`,
       email: userData.email,
@@ -500,7 +585,7 @@ export function AuthProvider({ children }) {
       company: userData.company || '',
       phone: userData.phone || '',
       bio: userData.bio || '',
-      password: 'temp123', // Temporary password
+      password: defaultPassword, // Temporary password
       createdAt: new Date().toISOString(),
       isActive: true,
       hasCompletedOnboarding: true,
@@ -513,10 +598,14 @@ export function AuthProvider({ children }) {
 
   const completeOnboarding = () => {
     if (state.user) {
+      const existingUser = state.users.find(u => u.id === state.user.id);
+      if (!existingUser) return;
+      
       const updatedUser = {
-        ...state.user,
+        ...existingUser,
         hasCompletedOnboarding: true
       };
+      
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
     }
   };
