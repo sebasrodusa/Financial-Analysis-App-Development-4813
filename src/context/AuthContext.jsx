@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import supabase from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -7,7 +6,6 @@ const initialState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  needsOnboarding: false,
   users: [
     // Default admin user
     {
@@ -19,7 +17,6 @@ const initialState = {
       role: 'admin',
       createdAt: new Date().toISOString(),
       isActive: true,
-      permissions: ['all'],
       hasCompletedOnboarding: true
     },
     // Sample financial professional
@@ -32,11 +29,21 @@ const initialState = {
       role: 'financial_professional',
       createdAt: new Date().toISOString(),
       isActive: true,
-      permissions: ['clients', 'analyses', 'reports'],
-      hasCompletedOnboarding: false
+      hasCompletedOnboarding: true
+    },
+    // Additional demo users
+    {
+      id: 'fp-2',
+      email: 'jane.doe@prospertrack.com',
+      password: 'demo123',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      role: 'financial_professional',
+      createdAt: new Date().toISOString(),
+      isActive: true,
+      hasCompletedOnboarding: true
     }
-  ],
-  supabaseUsers: [] // Separate array for Supabase users
+  ]
 };
 
 function authReducer(state, action) {
@@ -46,26 +53,14 @@ function authReducer(state, action) {
         ...state,
         user: action.payload,
         isAuthenticated: true,
-        isLoading: false,
-        needsOnboarding: !action.payload.hasCompletedOnboarding
+        isLoading: false
       };
     case 'LOGOUT':
       return {
         ...state,
         user: null,
         isAuthenticated: false,
-        isLoading: false,
-        needsOnboarding: false
-      };
-    case 'COMPLETE_ONBOARDING':
-      const updatedUser = { ...state.user, hasCompletedOnboarding: true };
-      return {
-        ...state,
-        user: updatedUser,
-        needsOnboarding: false,
-        users: state.users.map(user => 
-          user.id === updatedUser.id ? updatedUser : user
-        )
+        isLoading: false
       };
     case 'SET_LOADING':
       return {
@@ -80,245 +75,104 @@ function authReducer(state, action) {
     case 'UPDATE_USER':
       return {
         ...state,
-        users: state.users.map(user =>
+        users: state.users.map(user => 
           user.id === action.payload.id ? action.payload : user
         ),
-        supabaseUsers: state.supabaseUsers.map(user =>
-          user.id === action.payload.id ? action.payload : user
-        )
+        user: state.user?.id === action.payload.id ? action.payload : state.user
       };
     case 'DELETE_USER':
       return {
         ...state,
-        users: state.users.filter(user => user.id !== action.payload),
-        supabaseUsers: state.supabaseUsers.filter(user => user.id !== action.payload)
+        users: state.users.filter(user => user.id !== action.payload)
       };
-    case 'LOAD_AUTH_DATA':
+    case 'TOGGLE_USER_STATUS':
       return {
         ...state,
-        ...action.payload
+        users: state.users.map(user =>
+          user.id === action.payload
+            ? { ...user, isActive: !user.isActive }
+            : user
+        )
       };
-    case 'SET_SUPABASE_USERS':
+    case 'LOAD_USERS':
       return {
         ...state,
-        supabaseUsers: action.payload
-      };
-    case 'ADD_SUPABASE_USER':
-      return {
-        ...state,
-        supabaseUsers: [...state.supabaseUsers, action.payload]
+        users: action.payload
       };
     default:
       return state;
   }
 }
 
-// Safe localStorage operations with error handling
-const safeGetFromStorage = (key, fallback = null) => {
+// Safe localStorage operations
+const getFromStorage = (key, fallback = null) => {
   try {
     if (typeof window === 'undefined') return fallback;
     const item = localStorage.getItem(key);
-    if (item === null || item === 'undefined') return fallback;
-    return JSON.parse(item);
+    return item ? JSON.parse(item) : fallback;
   } catch (error) {
-    console.warn(`Error parsing localStorage item "${key}":`, error);
-    try {
-      localStorage.removeItem(key);
-    } catch (e) {
-      console.warn('Could not clear corrupted localStorage item:', e);
-    }
+    console.warn(`Error reading from localStorage: ${key}`, error);
     return fallback;
   }
 };
 
-const safeSetToStorage = (key, value) => {
+const saveToStorage = (key, value) => {
   try {
     if (typeof window === 'undefined') return;
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
-    console.warn(`Error saving to localStorage "${key}":`, error);
+    console.warn(`Error saving to localStorage: ${key}`, error);
   }
-};
-
-// Generate random 6-digit code
-const generateVerificationCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Load Supabase users on mount and refresh periodically
-  const loadSupabaseUsers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('users_reg_7k9m2x')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        // Convert Supabase users to our format
-        const formattedUsers = data.map(user => ({
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: user.role,
-          company: user.company,
-          phone: user.phone,
-          bio: user.bio,
-          status: user.status,
-          createdAt: user.created_at,
-          isActive: user.status === 'approved',
-          permissions: user.role === 'admin' ? ['all'] : ['clients', 'analyses', 'reports'],
-          hasCompletedOnboarding: true,
-          isSupabaseUser: true
-        }));
-
-        dispatch({ type: 'SET_SUPABASE_USERS', payload: formattedUsers });
-      }
-    } catch (error) {
-      console.warn('Error loading Supabase users:', error);
-    }
-  };
-
-  // Load data from localStorage on mount with error handling
+  // Load data from localStorage on mount
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        // Check Supabase session first
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.warn('Supabase session error:', error);
-        }
-        
-        // Load local auth data
-        const savedAuthData = safeGetFromStorage('authData');
-        const savedUser = safeGetFromStorage('currentUser');
-        
-        if (savedAuthData && typeof savedAuthData === 'object') {
-          dispatch({ type: 'LOAD_AUTH_DATA', payload: savedAuthData });
-        }
-        
-        if (savedUser && typeof savedUser === 'object') {
-          dispatch({ type: 'LOGIN', payload: savedUser });
-        } else {
-          dispatch({ type: 'SET_LOADING', payload: false });
-        }
+    const savedUser = getFromStorage('currentUser');
+    const savedUsers = getFromStorage('allUsers');
 
-        // Load Supabase users
-        await loadSupabaseUsers();
-      } catch (error) {
-        console.warn('Error initializing auth:', error);
-        dispatch({ type: 'SET_LOADING', payload: false });
-      }
-    };
+    if (savedUsers && Array.isArray(savedUsers)) {
+      dispatch({ type: 'LOAD_USERS', payload: savedUsers });
+    }
 
-    initializeAuth();
-
-    // Refresh Supabase users every 30 seconds
-    const interval = setInterval(loadSupabaseUsers, 30000);
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        
-        if (event === 'SIGNED_OUT') {
-          dispatch({ type: 'LOGOUT' });
-        } else if (event === 'SIGNED_IN' && session?.user) {
-          // Handle Supabase auth success
-          const { data: userData, error } = await supabase
-            .from('users_reg_7k9m2x')
-            .select('*')
-            .eq('supabase_user_id', session.user.id)
-            .eq('status', 'approved')
-            .single();
-
-          if (userData && !error) {
-            const user = {
-              id: userData.id,
-              email: userData.email,
-              firstName: userData.first_name,
-              lastName: userData.last_name,
-              role: userData.role,
-              isActive: true,
-              hasCompletedOnboarding: true,
-              supabaseUserId: userData.supabase_user_id,
-              isSupabaseUser: true
-            };
-            dispatch({ type: 'LOGIN', payload: user });
-          }
-        }
-      }
-    );
-
-    return () => {
-      subscription?.unsubscribe();
-      clearInterval(interval);
-    };
+    if (savedUser) {
+      dispatch({ type: 'LOGIN', payload: savedUser });
+    } else {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
   }, []);
 
   // Save data to localStorage whenever state changes
   useEffect(() => {
-    try {
-      const { user, isAuthenticated, isLoading, needsOnboarding, supabaseUsers, ...authData } = state;
-      safeSetToStorage('authData', authData);
-      
-      if (user && typeof user === 'object') {
-        safeSetToStorage('currentUser', user);
-      } else {
-        try {
-          localStorage.removeItem('currentUser');
-        } catch (e) {
-          console.warn('Could not remove currentUser from localStorage:', e);
-        }
-      }
-    } catch (error) {
-      console.warn('Error saving auth data to localStorage:', error);
+    if (state.user) {
+      saveToStorage('currentUser', state.user);
+    } else {
+      localStorage.removeItem('currentUser');
     }
-  }, [state]);
+    
+    saveToStorage('allUsers', state.users);
+  }, [state.user, state.users]);
 
-  // Get all users (local + Supabase)
-  const getAllUsers = () => {
-    return [...state.users, ...state.supabaseUsers];
-  };
-
+  // Authentication functions
   const login = async (email, password) => {
     dispatch({ type: 'SET_LOADING', payload: true });
-    
+
     try {
-      // First try local authentication
-      const allUsers = getAllUsers();
-      const user = allUsers.find(u => 
+      const user = state.users.find(u => 
         u.email === email && 
-        (u.password === password || u.isSupabaseUser) && 
+        u.password === password && 
         u.isActive
       );
-      
+
       if (user) {
-        // Try to sign in with Supabase (optional)
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
-          });
-          
-          if (error && error.message !== 'Invalid login credentials') {
-            console.warn('Supabase auth warning:', error);
-          }
-        } catch (supabaseError) {
-          console.warn('Supabase auth error:', supabaseError);
-          // Continue with local auth even if Supabase fails
-        }
-        
         const { password: _, ...userWithoutPassword } = user;
         dispatch({ type: 'LOGIN', payload: userWithoutPassword });
         return { success: true, user: userWithoutPassword };
       } else {
         dispatch({ type: 'SET_LOADING', payload: false });
-        return { success: false, error: 'Invalid email or password. Please try the demo credentials.' };
+        return { success: false, error: 'Invalid email or password' };
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -327,412 +181,45 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signUp = async (userData) => {
-    try {
-      // Insert user into Supabase
-      const { data, error } = await supabase
-        .from('users_reg_7k9m2x')
-        .insert([{
-          email: userData.email,
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          role: userData.role,
-          company: userData.company,
-          phone: userData.phone,
-          bio: userData.bio,
-          status: 'pending'
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          return { success: false, error: 'Email address is already registered.' };
-        }
-        return { success: false, error: error.message };
-      }
-
-      // Check if auto-approve is enabled
-      const { data: settings } = await supabase
-        .from('admin_settings_7k9m2x')
-        .select('auto_approve_registrations')
-        .single();
-
-      if (settings?.auto_approve_registrations) {
-        // Auto-approve the user
-        const { error: updateError } = await supabase
-          .from('users_reg_7k9m2x')
-          .update({ status: 'approved', approved_at: new Date().toISOString() })
-          .eq('id', data.id);
-
-        if (!updateError) {
-          // Create Supabase auth user
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: userData.email,
-            password: generateVerificationCode() // Temporary password
-          });
-
-          if (authData.user && !authError) {
-            // Link the auth user to our user record
-            await supabase
-              .from('users_reg_7k9m2x')
-              .update({ supabase_user_id: authData.user.id })
-              .eq('id', data.id);
-          }
-        }
-      }
-
-      // Refresh the users list
-      await loadSupabaseUsers();
-
-      return { success: true, user: data };
-    } catch (error) {
-      console.error('Sign up error:', error);
-      return { success: false, error: 'Registration failed. Please try again.' };
-    }
-  };
-
-  const sendEmailCode = async (email) => {
-    try {
-      // Check if user exists and is approved
-      const { data: userData, error } = await supabase
-        .from('users_reg_7k9m2x')
-        .select('*')
-        .eq('email', email)
-        .eq('status', 'approved')
-        .single();
-
-      if (error || !userData) {
-        return { success: false, error: 'User not found or not approved.' };
-      }
-
-      // Generate verification code
-      const code = generateVerificationCode();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-      // Store verification code
-      const { error: codeError } = await supabase
-        .from('email_verification_7k9m2x')
-        .insert([{
-          email: email,
-          code: code,
-          expires_at: expiresAt.toISOString()
-        }]);
-
-      if (codeError) {
-        return { success: false, error: 'Failed to generate verification code.' };
-      }
-
-      // In a real app, you would send the email here
-      // For demo purposes, we'll log the code
-      console.log(`Verification code for ${email}: ${code}`);
-      
-      // Show the code in an alert for demo purposes
-      alert(`Demo: Your verification code is ${code}`);
-
-      return { success: true };
-    } catch (error) {
-      console.error('Send email code error:', error);
-      return { success: false, error: 'Failed to send verification code.' };
-    }
-  };
-
-  const verifyEmailCode = async (email, code) => {
-    try {
-      // Verify the code
-      const { data: verificationData, error } = await supabase
-        .from('email_verification_7k9m2x')
-        .select('*')
-        .eq('email', email)
-        .eq('code', code)
-        .eq('verified', false)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error || !verificationData) {
-        return { success: false, error: 'Invalid or expired verification code.' };
-      }
-
-      // Mark code as verified
-      await supabase
-        .from('email_verification_7k9m2x')
-        .update({ verified: true })
-        .eq('id', verificationData.id);
-
-      // Get user data
-      const { data: userData, error: userError } = await supabase
-        .from('users_reg_7k9m2x')
-        .select('*')
-        .eq('email', email)
-        .eq('status', 'approved')
-        .single();
-
-      if (userError || !userData) {
-        return { success: false, error: 'User not found or not approved.' };
-      }
-
-      // Create user session
-      const user = {
-        id: userData.id,
-        email: userData.email,
-        firstName: userData.first_name,
-        lastName: userData.last_name,
-        role: userData.role,
-        isActive: true,
-        hasCompletedOnboarding: true,
-        supabaseUserId: userData.supabase_user_id,
-        isSupabaseUser: true
-      };
-
-      dispatch({ type: 'LOGIN', payload: user });
-      return { success: true, user };
-    } catch (error) {
-      console.error('Verify email code error:', error);
-      return { success: false, error: 'Verification failed. Please try again.' };
-    }
-  };
-
-  const getAdminSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('admin_settings_7k9m2x')
-        .select('*')
-        .single();
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return { 
-        success: true, 
-        settings: {
-          autoApproveRegistrations: data.auto_approve_registrations
-        }
-      };
-    } catch (error) {
-      console.error('Get admin settings error:', error);
-      return { success: false, error: 'Failed to load settings.' };
-    }
-  };
-
-  const updateAdminSettings = async (settings) => {
-    try {
-      const { error } = await supabase
-        .from('admin_settings_7k9m2x')
-        .update({
-          auto_approve_registrations: settings.autoApproveRegistrations,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', (await supabase.from('admin_settings_7k9m2x').select('id').single()).data.id);
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Update admin settings error:', error);
-      return { success: false, error: 'Failed to update settings.' };
-    }
-  };
-
-  const getPendingUsers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('users_reg_7k9m2x')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, users: data };
-    } catch (error) {
-      console.error('Get pending users error:', error);
-      return { success: false, error: 'Failed to load pending users.' };
-    }
-  };
-
-  const approveUser = async (userId) => {
-    try {
-      const { error } = await supabase
-        .from('users_reg_7k9m2x')
-        .update({ 
-          status: 'approved', 
-          approved_at: new Date().toISOString(),
-          approved_by: state.user?.supabaseUserId
-        })
-        .eq('id', userId);
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      // Refresh the users list
-      await loadSupabaseUsers();
-
-      return { success: true };
-    } catch (error) {
-      console.error('Approve user error:', error);
-      return { success: false, error: 'Failed to approve user.' };
-    }
-  };
-
-  const rejectUser = async (userId) => {
-    try {
-      const { error } = await supabase
-        .from('users_reg_7k9m2x')
-        .update({ status: 'rejected' })
-        .eq('id', userId);
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      // Refresh the users list
-      await loadSupabaseUsers();
-
-      return { success: true };
-    } catch (error) {
-      console.error('Reject user error:', error);
-      return { success: false, error: 'Failed to reject user.' };
-    }
-  };
-
-  const logout = async () => {
-    try {
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.warn('Supabase logout error:', error);
-    }
-    
-    // Clear local auth state
+  const logout = () => {
     dispatch({ type: 'LOGOUT' });
+    localStorage.removeItem('currentUser');
+  };
+
+  const addUser = (userData) => {
+    const newUser = {
+      id: `user-${Date.now()}`,
+      ...userData,
+      createdAt: new Date().toISOString(),
+      isActive: true,
+      hasCompletedOnboarding: true
+    };
     
-    // Clear localStorage
-    try {
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('authData');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('token');
-    } catch (error) {
-      console.warn('Error clearing localStorage:', error);
+    dispatch({ type: 'ADD_USER', payload: newUser });
+    return { success: true, user: newUser };
+  };
+
+  const updateUser = (userData) => {
+    dispatch({ type: 'UPDATE_USER', payload: userData });
+    return { success: true };
+  };
+
+  const deleteUser = (userId) => {
+    // Prevent deletion of admin users
+    const user = state.users.find(u => u.id === userId);
+    if (user?.role === 'admin') {
+      return { success: false, error: 'Cannot delete admin users' };
     }
+    
+    dispatch({ type: 'DELETE_USER', payload: userId });
+    return { success: true };
   };
 
-  const completeOnboarding = () => {
-    dispatch({ type: 'COMPLETE_ONBOARDING' });
+  const toggleUserStatus = (userId) => {
+    dispatch({ type: 'TOGGLE_USER_STATUS', payload: userId });
   };
 
-  const addUser = async (userData) => {
-    try {
-      // Add to Supabase
-      const { data, error } = await supabase
-        .from('users_reg_7k9m2x')
-        .insert([{
-          email: userData.email,
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          role: userData.role,
-          company: userData.company || '',
-          phone: userData.phone || '',
-          bio: userData.bio || '',
-          status: 'approved' // Admin-created users are auto-approved
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        if (error.code === '23505') {
-          throw new Error('Email address is already registered.');
-        }
-        throw new Error(error.message);
-      }
-
-      // Refresh the users list
-      await loadSupabaseUsers();
-
-      return { success: true, user: data };
-    } catch (error) {
-      console.error('Add user error:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  const updateUser = async (userData) => {
-    try {
-      if (userData.isSupabaseUser) {
-        // Update in Supabase
-        const { error } = await supabase
-          .from('users_reg_7k9m2x')
-          .update({
-            first_name: userData.firstName,
-            last_name: userData.lastName,
-            role: userData.role,
-            status: userData.isActive ? 'approved' : 'inactive'
-          })
-          .eq('id', userData.id);
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        // Refresh the users list
-        await loadSupabaseUsers();
-      } else {
-        // Update local user
-        dispatch({ type: 'UPDATE_USER', payload: userData });
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Update user error:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  const deleteUser = async (userId) => {
-    try {
-      // Find the user to check if it's a Supabase user
-      const allUsers = getAllUsers();
-      const user = allUsers.find(u => u.id === userId);
-
-      if (user && user.isSupabaseUser) {
-        // Delete from Supabase
-        const { error } = await supabase
-          .from('users_reg_7k9m2x')
-          .delete()
-          .eq('id', userId);
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        // Refresh the users list
-        await loadSupabaseUsers();
-      } else {
-        // Delete local user
-        dispatch({ type: 'DELETE_USER', payload: userId });
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Delete user error:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  const hasPermission = (permission) => {
-    if (!state.user) return false;
-    if (state.user.role === 'admin') return true;
-    return state.user.permissions?.includes(permission) || false;
-  };
-
+  // Role checking functions
   const isAdmin = () => {
     return state.user?.role === 'admin';
   };
@@ -741,30 +228,145 @@ export function AuthProvider({ children }) {
     return state.user?.role === 'financial_professional';
   };
 
+  const hasPermission = (permission) => {
+    if (!state.user) return false;
+    if (state.user.role === 'admin') return true;
+    
+    // Define permissions for financial professionals
+    const fpPermissions = ['clients', 'analyses', 'reports', 'calculators'];
+    return fpPermissions.includes(permission);
+  };
+
+  // Admin-specific functions
+  const getAdminSettings = async () => {
+    return {
+      success: true,
+      settings: {
+        autoApproveRegistrations: false
+      }
+    };
+  };
+
+  const updateAdminSettings = async (settings) => {
+    // In a real app, this would save to a database
+    return { success: true };
+  };
+
+  const getPendingUsers = async () => {
+    return {
+      success: true,
+      users: [] // No pending users in this simplified system
+    };
+  };
+
+  const approveUser = async (userId) => {
+    return { success: true };
+  };
+
+  const rejectUser = async (userId) => {
+    return { success: true };
+  };
+
+  // Email-based login (simplified)
+  const sendEmailCode = async (email) => {
+    const user = state.users.find(u => u.email === email && u.isActive);
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Generate a simple code for demo
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store the code temporarily (in production, this would be in a database)
+    saveToStorage(`emailCode_${email}`, {
+      code,
+      expires: Date.now() + 10 * 60 * 1000 // 10 minutes
+    });
+
+    // Show code in alert for demo
+    alert(`Demo: Your verification code is ${code}`);
+    return { success: true };
+  };
+
+  const verifyEmailCode = async (email, code) => {
+    const storedData = getFromStorage(`emailCode_${email}`);
+    
+    if (!storedData || storedData.expires < Date.now()) {
+      return { success: false, error: 'Code expired or not found' };
+    }
+
+    if (storedData.code !== code) {
+      return { success: false, error: 'Invalid code' };
+    }
+
+    // Find and login user
+    const user = state.users.find(u => u.email === email && u.isActive);
+    if (user) {
+      const { password: _, ...userWithoutPassword } = user;
+      dispatch({ type: 'LOGIN', payload: userWithoutPassword });
+      localStorage.removeItem(`emailCode_${email}`);
+      return { success: true, user: userWithoutPassword };
+    }
+
+    return { success: false, error: 'User not found' };
+  };
+
+  // Sign up function
+  const signUp = async (userData) => {
+    // Check if email already exists
+    const existingUser = state.users.find(u => u.email === userData.email);
+    if (existingUser) {
+      return { success: false, error: 'Email already registered' };
+    }
+
+    const newUser = {
+      id: `user-${Date.now()}`,
+      email: userData.email,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      role: userData.role || 'financial_professional',
+      company: userData.company || '',
+      phone: userData.phone || '',
+      bio: userData.bio || '',
+      password: 'temp123', // Temporary password
+      createdAt: new Date().toISOString(),
+      isActive: true,
+      hasCompletedOnboarding: true
+    };
+
+    dispatch({ type: 'ADD_USER', payload: newUser });
+    return { success: true, user: newUser };
+  };
+
+  const completeOnboarding = () => {
+    if (state.user) {
+      const updatedUser = { ...state.user, hasCompletedOnboarding: true };
+      dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
         ...state,
-        users: getAllUsers(),
-        dispatch,
         login,
-        signUp,
-        sendEmailCode,
-        verifyEmailCode,
+        logout,
+        addUser,
+        updateUser,
+        deleteUser,
+        toggleUserStatus,
+        isAdmin,
+        isFinancialProfessional,
+        hasPermission,
         getAdminSettings,
         updateAdminSettings,
         getPendingUsers,
         approveUser,
         rejectUser,
-        logout,
-        completeOnboarding,
-        addUser,
-        updateUser,
-        deleteUser,
-        hasPermission,
-        isAdmin,
-        isFinancialProfessional,
-        loadSupabaseUsers
+        sendEmailCode,
+        verifyEmailCode,
+        signUp,
+        completeOnboarding
       }}
     >
       {children}

@@ -5,23 +5,23 @@ import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import UserModal from './UserModal';
-import AdminSettings from './AdminSettings';
 
 const { FiUsers, FiUserPlus, FiEdit2, FiTrash2, FiEye, FiShield, FiBriefcase, FiBarChart3, FiSettings, FiSearch } = FiIcons;
 
 function AdminDashboard() {
-  const { users, addUser, updateUser, deleteUser } = useAuth();
+  const { users, addUser, updateUser, deleteUser, toggleUserStatus } = useAuth();
   const { state } = useClient();
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'settings'
 
-  const handleAddUser = (userData) => {
-    addUser(userData);
-    setShowUserModal(false);
+  const handleAddUser = async (userData) => {
+    const result = await addUser(userData);
+    if (result.success) {
+      setShowUserModal(false);
+    }
   };
 
   const handleEditUser = (user) => {
@@ -29,27 +29,31 @@ function AdminDashboard() {
     setShowUserModal(true);
   };
 
-  const handleUpdateUser = (userData) => {
-    updateUser(userData);
-    setEditingUser(null);
-    setShowUserModal(false);
-  };
-
-  const handleDeleteUser = (userId) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      deleteUser(userId);
+  const handleUpdateUser = async (userData) => {
+    const result = await updateUser(userData);
+    if (result.success) {
+      setEditingUser(null);
+      setShowUserModal(false);
     }
   };
 
-  const toggleUserStatus = (user) => {
-    updateUser({ ...user, isActive: !user.isActive });
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      const result = await deleteUser(userId);
+      if (!result.success) {
+        alert(result.error || 'Failed to delete user');
+      }
+    }
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
     const matchesRole = filterRole === 'all' || user.role === filterRole;
+    
     return matchesSearch && matchesRole;
   });
 
@@ -156,165 +160,138 @@ function AdminDashboard() {
           </div>
         </motion.div>
 
-        {/* Tab Navigation */}
+        {/* User Management */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="bg-white rounded-xl shadow-lg overflow-hidden"
         >
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
-              <button
-                onClick={() => setActiveTab('users')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'users'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <SafeIcon icon={FiUsers} className="inline mr-2" />
-                User Management
-              </button>
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'settings'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <SafeIcon icon={FiSettings} className="inline mr-2" />
-                Settings & Approvals
-              </button>
-            </nav>
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-2xl font-semibold text-gray-900">User Management</h2>
           </div>
 
           <div className="p-6">
-            {activeTab === 'users' ? (
-              <>
-                {/* Filters */}
-                <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-6">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <SafeIcon icon={FiSearch} className="absolute left-3 top-3 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search users..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <select
-                      value={filterRole}
-                      onChange={(e) => setFilterRole(e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="all">All Roles</option>
-                      <option value="admin">Admin</option>
-                      <option value="financial_professional">Financial Professional</option>
-                    </select>
-                  </div>
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-6">
+              <div className="flex-1">
+                <div className="relative">
+                  <SafeIcon icon={FiSearch} className="absolute left-3 top-3 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
+              </div>
+              <div>
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="all">All Roles</option>
+                  <option value="admin">Admin</option>
+                  <option value="financial_professional">Financial Professional</option>
+                </select>
+              </div>
+            </div>
 
-                {/* Users Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clients</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Analyses</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                                <span className="text-white font-semibold text-sm">
-                                  {user.firstName[0]}{user.lastName[0]}
-                                </span>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {user.firstName} {user.lastName}
-                                </div>
-                                <div className="text-sm text-gray-500">{user.email}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              <SafeIcon icon={user.role === 'admin' ? FiShield : FiBriefcase} className="mr-1 text-xs" />
-                              {user.role === 'admin' ? 'Admin' : 'Financial Professional'}
+            {/* Users Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clients</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Analyses</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm">
+                              {user.firstName[0]}{user.lastName[0]}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <button
-                              onClick={() => toggleUserStatus(user)}
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                user.isActive 
-                                  ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                              } transition-colors`}
-                            >
-                              <div className={`w-2 h-2 rounded-full mr-1 ${user.isActive ? 'bg-green-600' : 'bg-gray-400'}`} />
-                              {user.isActive ? 'Active' : 'Inactive'}
-                            </button>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {user.role === 'financial_professional' ? getClientsByUser(user.id).length : '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {user.role === 'financial_professional' ? getAnalysesByUser(user.id).length : '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(user.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => setSelectedUser(user)}
-                                className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
-                              >
-                                <SafeIcon icon={FiEye} />
-                              </button>
-                              <button
-                                onClick={() => handleEditUser(user)}
-                                className="text-indigo-600 hover:text-indigo-900 p-1 hover:bg-indigo-50 rounded transition-colors"
-                              >
-                                <SafeIcon icon={FiEdit2} />
-                              </button>
-                              {user.role !== 'admin' && (
-                                <button
-                                  onClick={() => handleDeleteUser(user.id)}
-                                  className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
-                                >
-                                  <SafeIcon icon={FiTrash2} />
-                                </button>
-                              )}
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {user.firstName} {user.lastName}
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <AdminSettings />
-            )}
+                            <div className="text-sm text-gray-500">{user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          user.role === 'admin' 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          <SafeIcon icon={user.role === 'admin' ? FiShield : FiBriefcase} className="mr-1 text-xs" />
+                          {user.role === 'admin' ? 'Admin' : 'Financial Professional'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => toggleUserStatus(user.id)}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.isActive 
+                              ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                              : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                          } transition-colors`}
+                        >
+                          <div className={`w-2 h-2 rounded-full mr-1 ${user.isActive ? 'bg-green-600' : 'bg-gray-400'}`} />
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {user.role === 'financial_professional' ? getClientsByUser(user.id).length : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {user.role === 'financial_professional' ? getAnalysesByUser(user.id).length : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setSelectedUser(user)}
+                            className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                          >
+                            <SafeIcon icon={FiEye} />
+                          </button>
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="text-indigo-600 hover:text-indigo-900 p-1 hover:bg-indigo-50 rounded transition-colors"
+                          >
+                            <SafeIcon icon={FiEdit2} />
+                          </button>
+                          {user.role !== 'admin' && (
+                            <button
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
+                            >
+                              <SafeIcon icon={FiTrash2} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </motion.div>
 
@@ -355,7 +332,7 @@ function AdminDashboard() {
                       <div className="space-y-2">
                         <p><strong>Clients:</strong> {getClientsByUser(selectedUser.id).length}</p>
                         <p><strong>Analyses:</strong> {getAnalysesByUser(selectedUser.id).length}</p>
-                        <p><strong>Permissions:</strong> {selectedUser.permissions?.join(', ') || 'Standard'}</p>
+                        <p><strong>Company:</strong> {selectedUser.company || 'Not provided'}</p>
                       </div>
                     </div>
                   )}

@@ -10,14 +10,12 @@ function UserModal({ user = null, onClose, onSave }) {
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    password: user?.password || '',
+    password: user ? '' : 'demo123', // Default password for new users
     role: user?.role || 'financial_professional',
-    permissions: user?.permissions || ['clients', 'analyses', 'reports'],
     isActive: user?.isActive !== undefined ? user.isActive : true,
     company: user?.company || '',
     phone: user?.phone || '',
-    bio: user?.bio || '',
-    ...user
+    bio: user?.bio || ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +26,13 @@ function UserModal({ user = null, onClose, onSave }) {
     setError('');
 
     try {
-      const result = await onSave(formData);
+      // Prepare data for saving
+      const userData = {
+        ...formData,
+        id: user?.id // Include ID for updates
+      };
+
+      const result = await onSave(userData);
       if (result && result.success === false) {
         setError(result.error);
       } else {
@@ -48,24 +52,6 @@ function UserModal({ user = null, onClose, onSave }) {
       [name]: type === 'checkbox' ? checked : value
     });
   };
-
-  const handlePermissionChange = (permission) => {
-    const newPermissions = formData.permissions.includes(permission)
-      ? formData.permissions.filter(p => p !== permission)
-      : [...formData.permissions, permission];
-    
-    setFormData({
-      ...formData,
-      permissions: newPermissions
-    });
-  };
-
-  const availablePermissions = [
-    { id: 'clients', label: 'Manage Clients', description: 'Create, edit, and view client profiles' },
-    { id: 'analyses', label: 'Financial Analysis', description: 'Create and edit financial analyses' },
-    { id: 'reports', label: 'Generate Reports', description: 'Create and export financial reports' },
-    { id: 'settings', label: 'Settings', description: 'Access to account settings' }
-  ];
 
   return (
     <motion.div
@@ -121,7 +107,6 @@ function UserModal({ user = null, onClose, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Last Name *
@@ -135,7 +120,6 @@ function UserModal({ user = null, onClose, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <SafeIcon icon={FiMail} className="inline mr-2" />
@@ -150,7 +134,6 @@ function UserModal({ user = null, onClose, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Phone
@@ -163,7 +146,6 @@ function UserModal({ user = null, onClose, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Company
@@ -176,7 +158,6 @@ function UserModal({ user = null, onClose, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-
               {!user && (
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -192,6 +173,11 @@ function UserModal({ user = null, onClose, onSave }) {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder={user ? 'Leave blank to keep current password' : 'Enter password'}
                   />
+                  {!user && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Default password is set to "demo123" - user can change it later
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -234,7 +220,6 @@ function UserModal({ user = null, onClose, onSave }) {
                   </option>
                 </select>
               </div>
-
               <div className="flex items-center">
                 <label className="flex items-center">
                   <input
@@ -249,34 +234,6 @@ function UserModal({ user = null, onClose, onSave }) {
               </div>
             </div>
           </div>
-
-          {/* Permissions */}
-          {formData.role === 'financial_professional' && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Permissions</h3>
-              <div className="space-y-3">
-                {availablePermissions.map((permission) => (
-                  <div key={permission.id} className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id={permission.id}
-                        type="checkbox"
-                        checked={formData.permissions.includes(permission.id)}
-                        onChange={() => handlePermissionChange(permission.id)}
-                        className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                      />
-                    </div>
-                    <div className="ml-3">
-                      <label htmlFor={permission.id} className="text-sm font-medium text-gray-700">
-                        {permission.label}
-                      </label>
-                      <p className="text-sm text-gray-500">{permission.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="flex justify-end space-x-4 mt-8">
             <button

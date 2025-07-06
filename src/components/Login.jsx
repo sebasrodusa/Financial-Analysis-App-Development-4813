@@ -52,12 +52,11 @@ function Login() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-24 h-24 mx-auto mb-4">
-            <img 
-              src="/prospertrack-logo.png" 
-              alt="ProsperTrack™ Logo" 
+            <img
+              src="/prospertrack-logo.png"
+              alt="ProsperTrack™ Logo"
               className="w-full h-full object-contain"
               onError={(e) => {
-                // Fallback to icon if logo fails to load
                 e.target.style.display = 'none';
                 e.target.nextElementSibling.style.display = 'flex';
               }}
@@ -79,7 +78,7 @@ function Login() {
             <SafeIcon icon={FiKey} />
             <span>Sign in with Email Code</span>
           </Link>
-          
+
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300" />
@@ -162,7 +161,6 @@ function Login() {
           <div className="text-center text-sm text-gray-500 mb-4">
             Quick Demo Access:
           </div>
-          
           <button
             onClick={() => handleDemoLogin('sebasrodus+admin@gmail.com', 'admin1234')}
             disabled={isLoading}
@@ -170,13 +168,19 @@ function Login() {
           >
             Login as Admin
           </button>
-          
           <button
             onClick={() => handleDemoLogin('advisor@prospertrack.com', 'advisor123')}
             disabled={isLoading}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Login as Financial Advisor
+          </button>
+          <button
+            onClick={() => handleDemoLogin('jane.doe@prospertrack.com', 'demo123')}
+            disabled={isLoading}
+            className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Login as Financial Professional
           </button>
         </div>
 
