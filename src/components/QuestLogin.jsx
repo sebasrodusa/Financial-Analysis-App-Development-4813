@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
-import { questConfig } from '../config/questConfig';
+import { getQuestConfig } from '../config/questConfig';
 
 const { FiTrendingUp, FiArrowRight, FiShield, FiUsers, FiBarChart3 } = FiIcons;
 
@@ -18,10 +18,11 @@ function QuestLogin() {
   const getUserId = () => {
     try {
       const storedUserId = localStorage.getItem('userId');
-      return storedUserId || questConfig.USER_ID;
+      const config = getQuestConfig();
+      return storedUserId || config?.USER_ID || 'default-user-id';
     } catch (error) {
       console.warn('Error getting user ID from localStorage:', error);
-      return questConfig.USER_ID;
+      return 'default-user-id';
     }
   };
 
@@ -31,8 +32,13 @@ function QuestLogin() {
     const loadQuestLogin = async () => {
       setIsLoading(true);
       try {
-        const { QuestLogin: QuestLoginComponent } = await import('@questlabs/react-sdk');
-        setQuestLogin(() => QuestLoginComponent);
+        const module = await import('@questlabs/react-sdk');
+        if (module.QuestLogin) {
+          setQuestLogin(() => module.QuestLogin);
+        } else {
+          console.warn('QuestLogin component not found in module');
+          setQuestLogin(null);
+        }
       } catch (error) {
         console.warn('Error loading QuestLogin component:', error);
         setQuestLogin(null);
@@ -47,12 +53,11 @@ function QuestLogin() {
   const handleLogin = async ({ userId, token, newUser }) => {
     try {
       // Store Quest data
-      localStorage.setItem('userId', userId);
-      localStorage.setItem('token', token);
-      
+      if (userId) localStorage.setItem('userId', userId);
+      if (token) localStorage.setItem('token', token);
+
       // Use our internal authentication system
       const result = await login('advisor@prospertrack.com', 'advisor123');
-      
       if (result.success) {
         if (newUser || !result.user.hasCompletedOnboarding) {
           navigate('/onboarding');
@@ -86,7 +91,7 @@ function QuestLogin() {
             <p className="text-xl mb-8 text-blue-100">
               Your comprehensive financial analysis platform designed for professionals
             </p>
-            
+
             {/* Feature highlights */}
             <div className="space-y-4 text-left max-w-md">
               <div className="flex items-center space-x-3">
@@ -104,7 +109,7 @@ function QuestLogin() {
             </div>
           </motion.div>
         </div>
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white bg-opacity-10 rounded-full -translate-y-32 translate-x-32"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white bg-opacity-10 rounded-full translate-y-24 -translate-x-24"></div>
@@ -144,20 +149,28 @@ function QuestLogin() {
                   onSubmit={handleLogin}
                   email={true}
                   google={false}
-                  accent={questConfig.PRIMARY_COLOR}
+                  accent="#3B82F6"
                   uniqueUserId={userId}
                 />
               </div>
             ) : (
               <div className="text-center py-12">
                 <SafeIcon icon={FiShield} className="text-4xl text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 mb-4">Unable to load authentication</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Retry
-                </button>
+                <p className="text-gray-600 mb-4">Quest Login not available</p>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Use Standard Login
+                  </button>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
               </div>
             )}
           </div>

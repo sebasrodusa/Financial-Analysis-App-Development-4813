@@ -33,7 +33,7 @@ export default [
       'react-hooks/exhaustive-deps': 'off',
       'react-refresh/only-export-components': 'off',
       'no-unused-vars': 'off',
-      'no-case-declarations': 'off'
+      'no-case-declarations': 'off',
     },
   },
 ];

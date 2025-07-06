@@ -14,12 +14,31 @@ function UserModal({ user = null, onClose, onSave }) {
     role: user?.role || 'financial_professional',
     permissions: user?.permissions || ['clients', 'analyses', 'reports'],
     isActive: user?.isActive !== undefined ? user.isActive : true,
+    company: user?.company || '',
+    phone: user?.phone || '',
+    bio: user?.bio || '',
     ...user
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const result = await onSave(formData);
+      if (result && result.success === false) {
+        setError(result.error);
+      } else {
+        onClose();
+      }
+    } catch (error) {
+      setError(error.message || 'An error occurred while saving the user.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e) => {
@@ -76,6 +95,12 @@ function UserModal({ user = null, onClose, onSave }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
           {/* Personal Information */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -96,6 +121,7 @@ function UserModal({ user = null, onClose, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Last Name *
@@ -109,6 +135,7 @@ function UserModal({ user = null, onClose, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <SafeIcon icon={FiMail} className="inline mr-2" />
@@ -123,22 +150,66 @@ function UserModal({ user = null, onClose, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <SafeIcon icon={FiLock} className="inline mr-2" />
-                  Password *
+                  Phone
                 </label>
                 <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
                   onChange={handleChange}
-                  required={!user}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder={user ? 'Leave blank to keep current password' : ''}
                 />
               </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Company
+                </label>
+                <input
+                  type="text"
+                  name="company"
+                  value={formData.company}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {!user && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <SafeIcon icon={FiLock} className="inline mr-2" />
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required={!user}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder={user ? 'Leave blank to keep current password' : 'Enter password'}
+                  />
+                </div>
+              )}
             </div>
+          </div>
+
+          {/* Bio */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Professional Bio
+            </label>
+            <textarea
+              name="bio"
+              value={formData.bio}
+              onChange={handleChange}
+              rows={3}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Brief professional background..."
+            />
           </div>
 
           {/* Role & Status */}
@@ -156,15 +227,14 @@ function UserModal({ user = null, onClose, onSave }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="financial_professional">
-                    <SafeIcon icon={FiBriefcase} className="inline mr-2" />
                     Financial Professional
                   </option>
                   <option value="admin">
-                    <SafeIcon icon={FiShield} className="inline mr-2" />
                     Administrator
                   </option>
                 </select>
               </div>
+
               <div className="flex items-center">
                 <label className="flex items-center">
                   <input
@@ -212,15 +282,24 @@ function UserModal({ user = null, onClose, onSave }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isLoading}
+              className="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={isLoading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
-              {user ? 'Update User' : 'Create User'}
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                user ? 'Update User' : 'Create User'
+              )}
             </button>
           </div>
         </form>

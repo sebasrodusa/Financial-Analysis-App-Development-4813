@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
-import { questConfig } from '../config/questConfig';
+import { getQuestConfig } from '../config/questConfig';
 
 const { FiCheckCircle, FiTrendingUp, FiTarget, FiUsers, FiBarChart3, FiShield } = FiIcons;
 
@@ -20,15 +20,18 @@ function QuestOnboarding() {
     try {
       const storedUserId = localStorage.getItem('userId');
       const storedToken = localStorage.getItem('token');
+      const config = getQuestConfig();
+      
       return {
-        userId: storedUserId || questConfig.USER_ID,
-        token: storedToken || questConfig.TOKEN
+        userId: storedUserId || config?.USER_ID || 'default-user-id',
+        token: storedToken || config?.TOKEN || 'default-token'
       };
     } catch (error) {
       console.warn('Error getting user data from localStorage:', error);
+      const config = getQuestConfig();
       return {
-        userId: questConfig.USER_ID,
-        token: questConfig.TOKEN
+        userId: config?.USER_ID || 'default-user-id',
+        token: config?.TOKEN || 'default-token'
       };
     }
   };
@@ -39,8 +42,13 @@ function QuestOnboarding() {
     const loadOnBoarding = async () => {
       setIsLoading(true);
       try {
-        const { OnBoarding: OnBoardingComponent } = await import('@questlabs/react-sdk');
-        setOnBoarding(() => OnBoardingComponent);
+        const module = await import('@questlabs/react-sdk');
+        if (module.OnBoarding) {
+          setOnBoarding(() => module.OnBoarding);
+        } else {
+          console.warn('OnBoarding component not found in module');
+          setOnBoarding(null);
+        }
       } catch (error) {
         console.warn('Error loading OnBoarding component:', error);
         setOnBoarding(null);
@@ -55,7 +63,6 @@ function QuestOnboarding() {
   const handleComplete = () => {
     // Mark onboarding as completed
     completeOnboarding();
-    
     // Navigate to main dashboard
     navigate('/dashboard');
   };
@@ -79,7 +86,7 @@ function QuestOnboarding() {
             <p className="text-xl mb-8 text-green-100">
               We're setting up your personalized financial analysis experience
             </p>
-            
+
             {/* Setup steps */}
             <div className="space-y-6 text-left max-w-md">
               <div className="flex items-center space-x-4">
@@ -91,7 +98,6 @@ function QuestOnboarding() {
                   <p className="text-green-200 text-sm">Configure your preferences</p>
                 </div>
               </div>
-              
               <div className="flex items-center space-x-4">
                 <div className="w-8 h-8 bg-blue-400 rounded-full flex items-center justify-center">
                   <SafeIcon icon={FiUsers} className="text-lg text-blue-800" />
@@ -101,7 +107,6 @@ function QuestOnboarding() {
                   <p className="text-green-200 text-sm">Learn about managing clients</p>
                 </div>
               </div>
-              
               <div className="flex items-center space-x-4">
                 <div className="w-8 h-8 bg-purple-400 rounded-full flex items-center justify-center">
                   <SafeIcon icon={FiBarChart3} className="text-lg text-purple-800" />
@@ -114,7 +119,7 @@ function QuestOnboarding() {
             </div>
           </motion.div>
         </div>
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white bg-opacity-10 rounded-full -translate-y-32 translate-x-32"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white bg-opacity-10 rounded-full translate-y-24 -translate-x-24"></div>
@@ -149,11 +154,11 @@ function QuestOnboarding() {
                 <OnBoarding
                   userId={userId}
                   token={token}
-                  questId={questConfig.QUEST_ONBOARDING_QUESTID}
+                  questId={getQuestConfig()?.QUEST_ONBOARDING_QUESTID || 'default-quest'}
                   answer={answers}
                   setAnswer={setAnswers}
                   getAnswers={handleComplete}
-                  accent={questConfig.PRIMARY_COLOR}
+                  accent="#3B82F6"
                   singleChoose="modal1"
                   multiChoice="modal2"
                 >
@@ -165,7 +170,7 @@ function QuestOnboarding() {
             ) : (
               <div className="text-center py-12">
                 <SafeIcon icon={FiTarget} className="text-4xl text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 mb-4">Unable to load onboarding</p>
+                <p className="text-gray-600 mb-4">Onboarding not available</p>
                 <div className="space-y-2">
                   <button
                     onClick={() => window.location.reload()}

@@ -35,7 +35,8 @@ const initialState = {
       permissions: ['clients', 'analyses', 'reports'],
       hasCompletedOnboarding: false
     }
-  ]
+  ],
+  supabaseUsers: [] // Separate array for Supabase users
 };
 
 function authReducer(state, action) {
@@ -81,17 +82,31 @@ function authReducer(state, action) {
         ...state,
         users: state.users.map(user =>
           user.id === action.payload.id ? action.payload : user
+        ),
+        supabaseUsers: state.supabaseUsers.map(user =>
+          user.id === action.payload.id ? action.payload : user
         )
       };
     case 'DELETE_USER':
       return {
         ...state,
-        users: state.users.filter(user => user.id !== action.payload)
+        users: state.users.filter(user => user.id !== action.payload),
+        supabaseUsers: state.supabaseUsers.filter(user => user.id !== action.payload)
       };
     case 'LOAD_AUTH_DATA':
       return {
         ...state,
         ...action.payload
+      };
+    case 'SET_SUPABASE_USERS':
+      return {
+        ...state,
+        supabaseUsers: action.payload
+      };
+    case 'ADD_SUPABASE_USER':
+      return {
+        ...state,
+        supabaseUsers: [...state.supabaseUsers, action.payload]
       };
     default:
       return state;
@@ -133,6 +148,40 @@ const generateVerificationCode = () => {
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  // Load Supabase users on mount and refresh periodically
+  const loadSupabaseUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users_reg_7k9m2x')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        // Convert Supabase users to our format
+        const formattedUsers = data.map(user => ({
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          role: user.role,
+          company: user.company,
+          phone: user.phone,
+          bio: user.bio,
+          status: user.status,
+          createdAt: user.created_at,
+          isActive: user.status === 'approved',
+          permissions: user.role === 'admin' ? ['all'] : ['clients', 'analyses', 'reports'],
+          hasCompletedOnboarding: true,
+          isSupabaseUser: true
+        }));
+
+        dispatch({ type: 'SET_SUPABASE_USERS', payload: formattedUsers });
+      }
+    } catch (error) {
+      console.warn('Error loading Supabase users:', error);
+    }
+  };
+
   // Load data from localStorage on mount with error handling
   useEffect(() => {
     const initializeAuth = async () => {
@@ -157,6 +206,9 @@ export function AuthProvider({ children }) {
         } else {
           dispatch({ type: 'SET_LOADING', payload: false });
         }
+
+        // Load Supabase users
+        await loadSupabaseUsers();
       } catch (error) {
         console.warn('Error initializing auth:', error);
         dispatch({ type: 'SET_LOADING', payload: false });
@@ -164,6 +216,9 @@ export function AuthProvider({ children }) {
     };
 
     initializeAuth();
+
+    // Refresh Supabase users every 30 seconds
+    const interval = setInterval(loadSupabaseUsers, 30000);
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -190,7 +245,8 @@ export function AuthProvider({ children }) {
               role: userData.role,
               isActive: true,
               hasCompletedOnboarding: true,
-              supabaseUserId: userData.supabase_user_id
+              supabaseUserId: userData.supabase_user_id,
+              isSupabaseUser: true
             };
             dispatch({ type: 'LOGIN', payload: user });
           }
@@ -200,13 +256,14 @@ export function AuthProvider({ children }) {
 
     return () => {
       subscription?.unsubscribe();
+      clearInterval(interval);
     };
   }, []);
 
   // Save data to localStorage whenever state changes
   useEffect(() => {
     try {
-      const { user, isAuthenticated, isLoading, needsOnboarding, ...authData } = state;
+      const { user, isAuthenticated, isLoading, needsOnboarding, supabaseUsers, ...authData } = state;
       safeSetToStorage('authData', authData);
       
       if (user && typeof user === 'object') {
@@ -223,13 +280,21 @@ export function AuthProvider({ children }) {
     }
   }, [state]);
 
+  // Get all users (local + Supabase)
+  const getAllUsers = () => {
+    return [...state.users, ...state.supabaseUsers];
+  };
+
   const login = async (email, password) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
       // First try local authentication
-      const user = state.users.find(u => 
-        u.email === email && u.password === password && u.isActive
+      const allUsers = getAllUsers();
+      const user = allUsers.find(u => 
+        u.email === email && 
+        (u.password === password || u.isSupabaseUser) && 
+        u.isActive
       );
       
       if (user) {
@@ -281,6 +346,9 @@ export function AuthProvider({ children }) {
         .single();
 
       if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+          return { success: false, error: 'Email address is already registered.' };
+        }
         return { success: false, error: error.message };
       }
 
@@ -313,6 +381,9 @@ export function AuthProvider({ children }) {
           }
         }
       }
+
+      // Refresh the users list
+      await loadSupabaseUsers();
 
       return { success: true, user: data };
     } catch (error) {
@@ -411,7 +482,8 @@ export function AuthProvider({ children }) {
         role: userData.role,
         isActive: true,
         hasCompletedOnboarding: true,
-        supabaseUserId: userData.supabase_user_id
+        supabaseUserId: userData.supabase_user_id,
+        isSupabaseUser: true
       };
 
       dispatch({ type: 'LOGIN', payload: user });
@@ -500,6 +572,9 @@ export function AuthProvider({ children }) {
         return { success: false, error: error.message };
       }
 
+      // Refresh the users list
+      await loadSupabaseUsers();
+
       return { success: true };
     } catch (error) {
       console.error('Approve user error:', error);
@@ -517,6 +592,9 @@ export function AuthProvider({ children }) {
       if (error) {
         return { success: false, error: error.message };
       }
+
+      // Refresh the users list
+      await loadSupabaseUsers();
 
       return { success: true };
     } catch (error) {
@@ -551,24 +629,102 @@ export function AuthProvider({ children }) {
     dispatch({ type: 'COMPLETE_ONBOARDING' });
   };
 
-  const addUser = (userData) => {
-    const newUser = {
-      id: `user-${Date.now()}`,
-      ...userData,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      hasCompletedOnboarding: false
-    };
-    dispatch({ type: 'ADD_USER', payload: newUser });
-    return newUser;
+  const addUser = async (userData) => {
+    try {
+      // Add to Supabase
+      const { data, error } = await supabase
+        .from('users_reg_7k9m2x')
+        .insert([{
+          email: userData.email,
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          role: userData.role,
+          company: userData.company || '',
+          phone: userData.phone || '',
+          bio: userData.bio || '',
+          status: 'approved' // Admin-created users are auto-approved
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('Email address is already registered.');
+        }
+        throw new Error(error.message);
+      }
+
+      // Refresh the users list
+      await loadSupabaseUsers();
+
+      return { success: true, user: data };
+    } catch (error) {
+      console.error('Add user error:', error);
+      return { success: false, error: error.message };
+    }
   };
 
-  const updateUser = (userData) => {
-    dispatch({ type: 'UPDATE_USER', payload: userData });
+  const updateUser = async (userData) => {
+    try {
+      if (userData.isSupabaseUser) {
+        // Update in Supabase
+        const { error } = await supabase
+          .from('users_reg_7k9m2x')
+          .update({
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            role: userData.role,
+            status: userData.isActive ? 'approved' : 'inactive'
+          })
+          .eq('id', userData.id);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        // Refresh the users list
+        await loadSupabaseUsers();
+      } else {
+        // Update local user
+        dispatch({ type: 'UPDATE_USER', payload: userData });
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Update user error:', error);
+      return { success: false, error: error.message };
+    }
   };
 
-  const deleteUser = (userId) => {
-    dispatch({ type: 'DELETE_USER', payload: userId });
+  const deleteUser = async (userId) => {
+    try {
+      // Find the user to check if it's a Supabase user
+      const allUsers = getAllUsers();
+      const user = allUsers.find(u => u.id === userId);
+
+      if (user && user.isSupabaseUser) {
+        // Delete from Supabase
+        const { error } = await supabase
+          .from('users_reg_7k9m2x')
+          .delete()
+          .eq('id', userId);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        // Refresh the users list
+        await loadSupabaseUsers();
+      } else {
+        // Delete local user
+        dispatch({ type: 'DELETE_USER', payload: userId });
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Delete user error:', error);
+      return { success: false, error: error.message };
+    }
   };
 
   const hasPermission = (permission) => {
@@ -589,6 +745,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         ...state,
+        users: getAllUsers(),
         dispatch,
         login,
         signUp,
@@ -606,7 +763,8 @@ export function AuthProvider({ children }) {
         deleteUser,
         hasPermission,
         isAdmin,
-        isFinancialProfessional
+        isFinancialProfessional,
+        loadSupabaseUsers
       }}
     >
       {children}

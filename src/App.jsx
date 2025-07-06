@@ -6,8 +6,6 @@ import { ClientProvider } from './context/ClientContext';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
 import EmailLogin from './components/EmailLogin';
-import QuestLogin from './components/QuestLogin';
-import QuestOnboarding from './components/QuestOnboarding';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import ClientProfile from './components/ClientProfile';
@@ -19,10 +17,19 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import './App.css';
 
-// Dynamically import Quest components to avoid SSR issues
+// Lazy load optional components to prevent build issues
+const QuestLogin = React.lazy(() => 
+  import('./components/QuestLogin').catch(() => ({ default: () => <div>Login not available</div> }))
+);
+
+const QuestOnboarding = React.lazy(() => 
+  import('./components/QuestOnboarding').catch(() => ({ default: () => <div>Onboarding not available</div> }))
+);
+
+// Dynamically import Quest components with proper error handling
 const QuestProvider = React.lazy(() =>
   import('@questlabs/react-sdk').then(module => ({
-    default: module.QuestProvider
+    default: module.QuestProvider || (({ children }) => children)
   })).catch(() => ({
     default: ({ children }) => children // Fallback component
   }))
@@ -44,7 +51,11 @@ function AppContent() {
 
   // Show onboarding if user needs it
   if (isAuthenticated && needsOnboarding) {
-    return <QuestOnboarding />;
+    return (
+      <React.Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div></div>}>
+        <QuestOnboarding />
+      </React.Suspense>
+    );
   }
 
   return (
@@ -71,11 +82,19 @@ function AppContent() {
           />
           <Route
             path="/quest-login"
-            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <QuestLogin />}
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : (
+              <React.Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div></div>}>
+                <QuestLogin />
+              </React.Suspense>
+            )}
           />
           <Route
             path="/onboarding"
-            element={isAuthenticated ? <QuestOnboarding /> : <Navigate to="/login" replace />}
+            element={isAuthenticated ? (
+              <React.Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div></div>}>
+                <QuestOnboarding />
+              </React.Suspense>
+            ) : <Navigate to="/login" replace />}
           />
 
           {/* Protected Routes */}
@@ -147,14 +166,23 @@ function AppContent() {
   );
 }
 
-// Quest configuration with error handling
+// Quest configuration with safe error handling
 const getQuestConfig = () => {
   try {
+    if (typeof window === 'undefined') return null;
+    
     const config = {
       apiKey: 'k-01e20326-644b-41ae-a703-65bfe60fc6c1',
       entityId: 'e-7a4dcfcd-535e-4d47-9fd2-11d2085767dd',
       apiType: 'PRODUCTION'
     };
+    
+    // Validate config
+    if (!config.apiKey || !config.entityId) {
+      console.warn('Quest config incomplete');
+      return null;
+    }
+    
     return config;
   } catch (error) {
     console.warn('Error getting Quest config:', error);

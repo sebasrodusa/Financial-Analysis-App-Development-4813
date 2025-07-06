@@ -12,6 +12,12 @@ export const questConfig = {
 // Safe config getter with validation
 export const getQuestConfig = () => {
   try {
+    // Check if running in browser
+    if (typeof window === 'undefined') {
+      console.warn('Quest config: Not in browser environment');
+      return null;
+    }
+
     // Validate required fields
     const requiredFields = ['QUEST_ONBOARDING_QUESTID', 'USER_ID', 'APIKEY', 'ENTITYID'];
     const missingFields = requiredFields.filter(field => !questConfig[field]);
@@ -20,10 +26,20 @@ export const getQuestConfig = () => {
       console.warn('Missing Quest config fields:', missingFields);
       return null;
     }
-    
+
     return questConfig;
   } catch (error) {
     console.warn('Error validating Quest config:', error);
     return null;
+  }
+};
+
+// Export individual config values safely
+export const getConfig = (key, fallback = null) => {
+  try {
+    return questConfig[key] || fallback;
+  } catch (error) {
+    console.warn(`Error getting config key ${key}:`, error);
+    return fallback;
   }
 };
