@@ -4,14 +4,16 @@ import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
 import GetStartedModal from './GetStartedModal';
+import UserProfile from './UserProfile';
 
-const { FiHome, FiUsers, FiBarChart3, FiSettings, FiLogOut, FiShield, FiBriefcase, FiMenu, FiX, FiPlayCircle, FiTrendingUp } = FiIcons;
+const { FiHome, FiUsers, FiBarChart3, FiSettings, FiLogOut, FiShield, FiBriefcase, FiMenu, FiX, FiPlayCircle, FiTrendingUp, FiUser } = FiIcons;
 
 function Navbar() {
   const { user, logout, isAdmin } = useAuth();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showGetStarted, setShowGetStarted] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -24,7 +26,7 @@ function Navbar() {
     { path: '/debt-stacking', label: 'Debt Stacking', icon: FiBarChart3, allowedRoles: ['admin', 'financial_professional'] }
   ];
 
-  const filteredNavItems = navigationItems.filter(item => 
+  const filteredNavItems = navigationItems.filter(item =>
     item.allowedRoles.includes(user?.role)
   );
 
@@ -36,9 +38,9 @@ function Navbar() {
             {/* Logo */}
             <Link to="/dashboard" className="flex items-center space-x-3">
               <div className="w-10 h-10">
-                <img 
-                  src="/prospertrack-icon.png" 
-                  alt="ProsperTrack™" 
+                <img
+                  src="/prospertrack-icon.png"
+                  alt="ProsperTrack™"
                   className="w-full h-full object-contain"
                   onError={(e) => {
                     // Fallback to icon if image fails to load
@@ -82,20 +84,36 @@ function Navbar() {
 
             {/* User Menu */}
             <div className="flex items-center space-x-4">
+              {/* Desktop User Info */}
               <div className="hidden md:flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-semibold">
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-gray-900">
-                    {user?.firstName} {user?.lastName}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {isAdmin() ? 'Administrator' : 'Financial Professional'}
-                  </span>
-                </div>
+                <button
+                  onClick={() => setShowUserProfile(true)}
+                  className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+                >
+                  <div className="w-8 h-8 relative">
+                    {user?.profilePhoto ? (
+                      <img
+                        src={user.profilePhoto}
+                        alt="Profile"
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-semibold">
+                          {user?.firstName?.[0]}{user?.lastName?.[0]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-sm font-medium text-gray-900">
+                      {user?.firstName} {user?.lastName}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {isAdmin() ? 'Administrator' : 'Financial Professional'}
+                    </span>
+                  </div>
+                </button>
               </div>
 
               <button
@@ -150,20 +168,38 @@ function Navbar() {
                 </button>
 
                 {/* Mobile User Info */}
-                <div className="flex items-center space-x-3 px-4 py-3 border-t border-gray-200 mt-2">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold">
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-medium text-gray-900">
-                      {user?.firstName} {user?.lastName}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {isAdmin() ? 'Administrator' : 'Financial Professional'}
-                    </span>
-                  </div>
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <button
+                    onClick={() => {
+                      setShowUserProfile(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors w-full"
+                  >
+                    <div className="w-10 h-10 relative">
+                      {user?.profilePhoto ? (
+                        <img
+                          src={user.profilePhoto}
+                          alt="Profile"
+                          className="w-full h-full object-cover rounded-full"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                          <span className="text-white font-semibold">
+                            {user?.firstName?.[0]}{user?.lastName?.[0]}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="font-medium text-gray-900">
+                        {user?.firstName} {user?.lastName}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {isAdmin() ? 'Administrator' : 'Financial Professional'}
+                      </span>
+                    </div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -172,10 +208,10 @@ function Navbar() {
       </nav>
 
       {/* GetStarted Modal */}
-      <GetStartedModal 
-        isOpen={showGetStarted} 
-        onClose={() => setShowGetStarted(false)} 
-      />
+      <GetStartedModal isOpen={showGetStarted} onClose={() => setShowGetStarted(false)} />
+
+      {/* User Profile Modal */}
+      <UserProfile isOpen={showUserProfile} onClose={() => setShowUserProfile(false)} />
     </>
   );
 }

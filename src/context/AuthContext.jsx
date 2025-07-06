@@ -17,7 +17,11 @@ const initialState = {
       role: 'admin',
       createdAt: new Date().toISOString(),
       isActive: true,
-      hasCompletedOnboarding: true
+      hasCompletedOnboarding: true,
+      profilePhoto: null,
+      phone: '+1 (555) 123-4567',
+      company: 'ProsperTrack Inc.',
+      bio: 'System administrator with extensive experience in financial technology platforms.'
     },
     // Sample financial professional
     {
@@ -29,7 +33,11 @@ const initialState = {
       role: 'financial_professional',
       createdAt: new Date().toISOString(),
       isActive: true,
-      hasCompletedOnboarding: true
+      hasCompletedOnboarding: true,
+      profilePhoto: null,
+      phone: '+1 (555) 234-5678',
+      company: 'Smith Financial Advisory',
+      bio: 'Certified Financial Planner with over 10 years of experience helping clients achieve their financial goals.'
     },
     // Additional demo users
     {
@@ -41,9 +49,15 @@ const initialState = {
       role: 'financial_professional',
       createdAt: new Date().toISOString(),
       isActive: true,
-      hasCompletedOnboarding: true
+      hasCompletedOnboarding: true,
+      profilePhoto: null,
+      phone: '+1 (555) 345-6789',
+      company: 'Doe Wealth Management',
+      bio: 'Investment advisor specializing in retirement planning and portfolio management.'
     }
-  ]
+  ],
+  passwordResetTokens: [], // Store password reset tokens
+  emailVerificationTokens: [] // Store email verification tokens
 };
 
 function authReducer(state, action) {
@@ -75,7 +89,7 @@ function authReducer(state, action) {
     case 'UPDATE_USER':
       return {
         ...state,
-        users: state.users.map(user => 
+        users: state.users.map(user =>
           user.id === action.payload.id ? action.payload : user
         ),
         user: state.user?.id === action.payload.id ? action.payload : state.user
@@ -89,15 +103,36 @@ function authReducer(state, action) {
       return {
         ...state,
         users: state.users.map(user =>
-          user.id === action.payload
-            ? { ...user, isActive: !user.isActive }
-            : user
+          user.id === action.payload ? { ...user, isActive: !user.isActive } : user
         )
       };
     case 'LOAD_USERS':
       return {
         ...state,
         users: action.payload
+      };
+    case 'ADD_PASSWORD_RESET_TOKEN':
+      return {
+        ...state,
+        passwordResetTokens: [...state.passwordResetTokens, action.payload]
+      };
+    case 'USE_PASSWORD_RESET_TOKEN':
+      return {
+        ...state,
+        passwordResetTokens: state.passwordResetTokens.map(token =>
+          token.token === action.payload ? { ...token, used: true } : token
+        )
+      };
+    case 'CLEAN_EXPIRED_TOKENS':
+      const now = new Date();
+      return {
+        ...state,
+        passwordResetTokens: state.passwordResetTokens.filter(
+          token => new Date(token.expiresAt) > now
+        ),
+        emailVerificationTokens: state.emailVerificationTokens.filter(
+          token => new Date(token.expiresAt) > now
+        )
       };
     default:
       return state;
@@ -125,6 +160,12 @@ const saveToStorage = (key, value) => {
   }
 };
 
+// Generate random token
+const generateToken = () => {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15);
+};
+
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
@@ -132,6 +173,8 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const savedUser = getFromStorage('currentUser');
     const savedUsers = getFromStorage('allUsers');
+    const savedPasswordResetTokens = getFromStorage('passwordResetTokens', []);
+    const savedEmailVerificationTokens = getFromStorage('emailVerificationTokens', []);
 
     if (savedUsers && Array.isArray(savedUsers)) {
       dispatch({ type: 'LOAD_USERS', payload: savedUsers });
@@ -142,6 +185,9 @@ export function AuthProvider({ children }) {
     } else {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
+
+    // Clean expired tokens on load
+    dispatch({ type: 'CLEAN_EXPIRED_TOKENS' });
   }, []);
 
   // Save data to localStorage whenever state changes
@@ -153,7 +199,9 @@ export function AuthProvider({ children }) {
     }
     
     saveToStorage('allUsers', state.users);
-  }, [state.user, state.users]);
+    saveToStorage('passwordResetTokens', state.passwordResetTokens);
+    saveToStorage('emailVerificationTokens', state.emailVerificationTokens);
+  }, [state.user, state.users, state.passwordResetTokens, state.emailVerificationTokens]);
 
   // Authentication functions
   const login = async (email, password) => {
@@ -161,9 +209,7 @@ export function AuthProvider({ children }) {
 
     try {
       const user = state.users.find(u => 
-        u.email === email && 
-        u.password === password && 
-        u.isActive
+        u.email === email && u.password === password && u.isActive
       );
 
       if (user) {
@@ -192,9 +238,10 @@ export function AuthProvider({ children }) {
       ...userData,
       createdAt: new Date().toISOString(),
       isActive: true,
-      hasCompletedOnboarding: true
+      hasCompletedOnboarding: true,
+      profilePhoto: null
     };
-    
+
     dispatch({ type: 'ADD_USER', payload: newUser });
     return { success: true, user: newUser };
   };
@@ -204,13 +251,137 @@ export function AuthProvider({ children }) {
     return { success: true };
   };
 
+  // Enhanced update functions for profile management
+  const updateUserEmail = async (newEmail, currentPassword) => {
+    if (!state.user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    // Verify current password
+    if (currentPassword !== state.user.password) {
+      return { success: false, error: 'Current password is incorrect' };
+    }
+
+    // Check if email is already taken
+    const emailExists = state.users.find(u => 
+      u.email === newEmail && u.id !== state.user.id
+    );
+
+    if (emailExists) {
+      return { success: false, error: 'Email address is already in use' };
+    }
+
+    // Update user email
+    const updatedUser = {
+      ...state.user,
+      email: newEmail,
+      updatedAt: new Date().toISOString()
+    };
+
+    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+    return { success: true };
+  };
+
+  const updateUserPassword = async (currentPassword, newPassword) => {
+    if (!state.user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    // Verify current password
+    if (currentPassword !== state.user.password) {
+      return { success: false, error: 'Current password is incorrect' };
+    }
+
+    // Update user password
+    const updatedUser = {
+      ...state.user,
+      password: newPassword,
+      updatedAt: new Date().toISOString()
+    };
+
+    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+    return { success: true };
+  };
+
+  // Password reset functionality
+  const sendPasswordResetEmail = async (email) => {
+    const user = state.users.find(u => u.email === email && u.isActive);
+    
+    if (!user) {
+      return { success: false, error: 'No user found with this email address' };
+    }
+
+    const token = generateToken();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+    const resetToken = {
+      id: `reset-${Date.now()}`,
+      userId: user.id,
+      token,
+      expiresAt: expiresAt.toISOString(),
+      used: false,
+      createdAt: new Date().toISOString()
+    };
+
+    dispatch({ type: 'ADD_PASSWORD_RESET_TOKEN', payload: resetToken });
+
+    // In a real app, you would send an email here
+    // For demo purposes, we'll show an alert with the reset link
+    const resetLink = `${window.location.origin}/#/reset-password?token=${token}`;
+    console.log('Password reset link:', resetLink);
+    
+    // Simulate email sending delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    return { success: true, resetLink };
+  };
+
+  const verifyResetToken = async (token) => {
+    const resetToken = state.passwordResetTokens.find(t => 
+      t.token === token && !t.used && new Date(t.expiresAt) > new Date()
+    );
+
+    if (!resetToken) {
+      return { success: false, error: 'Invalid or expired reset token' };
+    }
+
+    return { success: true, userId: resetToken.userId };
+  };
+
+  const resetPassword = async (token, newPassword) => {
+    const resetToken = state.passwordResetTokens.find(t => 
+      t.token === token && !t.used && new Date(t.expiresAt) > new Date()
+    );
+
+    if (!resetToken) {
+      return { success: false, error: 'Invalid or expired reset token' };
+    }
+
+    const user = state.users.find(u => u.id === resetToken.userId);
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Update user password
+    const updatedUser = {
+      ...user,
+      password: newPassword,
+      updatedAt: new Date().toISOString()
+    };
+
+    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+    dispatch({ type: 'USE_PASSWORD_RESET_TOKEN', payload: token });
+
+    return { success: true };
+  };
+
   const deleteUser = (userId) => {
     // Prevent deletion of admin users
     const user = state.users.find(u => u.id === userId);
     if (user?.role === 'admin') {
       return { success: false, error: 'Cannot delete admin users' };
     }
-    
+
     dispatch({ type: 'DELETE_USER', payload: userId });
     return { success: true };
   };
@@ -231,7 +402,7 @@ export function AuthProvider({ children }) {
   const hasPermission = (permission) => {
     if (!state.user) return false;
     if (state.user.role === 'admin') return true;
-    
+
     // Define permissions for financial professionals
     const fpPermissions = ['clients', 'analyses', 'reports', 'calculators'];
     return fpPermissions.includes(permission);
@@ -276,7 +447,7 @@ export function AuthProvider({ children }) {
 
     // Generate a simple code for demo
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // Store the code temporarily (in production, this would be in a database)
     saveToStorage(`emailCode_${email}`, {
       code,
@@ -285,6 +456,7 @@ export function AuthProvider({ children }) {
 
     // Show code in alert for demo
     alert(`Demo: Your verification code is ${code}`);
+
     return { success: true };
   };
 
@@ -331,7 +503,8 @@ export function AuthProvider({ children }) {
       password: 'temp123', // Temporary password
       createdAt: new Date().toISOString(),
       isActive: true,
-      hasCompletedOnboarding: true
+      hasCompletedOnboarding: true,
+      profilePhoto: null
     };
 
     dispatch({ type: 'ADD_USER', payload: newUser });
@@ -340,35 +513,41 @@ export function AuthProvider({ children }) {
 
   const completeOnboarding = () => {
     if (state.user) {
-      const updatedUser = { ...state.user, hasCompletedOnboarding: true };
+      const updatedUser = {
+        ...state.user,
+        hasCompletedOnboarding: true
+      };
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
     }
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        ...state,
-        login,
-        logout,
-        addUser,
-        updateUser,
-        deleteUser,
-        toggleUserStatus,
-        isAdmin,
-        isFinancialProfessional,
-        hasPermission,
-        getAdminSettings,
-        updateAdminSettings,
-        getPendingUsers,
-        approveUser,
-        rejectUser,
-        sendEmailCode,
-        verifyEmailCode,
-        signUp,
-        completeOnboarding
-      }}
-    >
+    <AuthContext.Provider value={{
+      ...state,
+      login,
+      logout,
+      addUser,
+      updateUser,
+      updateUserEmail,
+      updateUserPassword,
+      sendPasswordResetEmail,
+      verifyResetToken,
+      resetPassword,
+      deleteUser,
+      toggleUserStatus,
+      isAdmin,
+      isFinancialProfessional,
+      hasPermission,
+      getAdminSettings,
+      updateAdminSettings,
+      getPendingUsers,
+      approveUser,
+      rejectUser,
+      sendEmailCode,
+      verifyEmailCode,
+      signUp,
+      completeOnboarding
+    }}>
       {children}
     </AuthContext.Provider>
   );
