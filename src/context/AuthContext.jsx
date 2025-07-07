@@ -501,7 +501,6 @@ export function AuthProvider({ children }) {
       }
       
       console.log('Password updated successfully');
-      
       return { success: true };
     } catch (error) {
       console.error('Error updating password:', error);
@@ -685,7 +684,6 @@ export function AuthProvider({ children }) {
       }
       
       console.log('User status updated successfully');
-      
       return { success: true };
     } catch (error) {
       console.error('Error toggling user status:', error);
@@ -765,7 +763,6 @@ export function AuthProvider({ children }) {
       });
       
       alert(`Demo: Your verification code is ${code}`);
-      
       return { success: true };
     } catch (error) {
       console.error('Error sending email code:', error);
