@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
@@ -7,7 +7,6 @@ import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import ClientModal from './ClientModal';
 import GetStartedModal from './GetStartedModal';
-import SupabaseTest from './SupabaseTest';
 
 const { FiPlus, FiUser, FiTrendingUp, FiFileText, FiCalculator, FiCreditCard, FiPlayCircle } = FiIcons;
 
@@ -16,40 +15,21 @@ function Dashboard() {
   const { user, isAdmin } = useAuth();
   const [showClientModal, setShowClientModal] = useState(false);
   const [showGetStarted, setShowGetStarted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Data should load automatically from ClientProvider
-    const timer = setTimeout(() => setIsLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleAddClient = async (clientData) => {
+  const handleAddClient = (clientData) => {
     const newClient = {
+      id: Date.now().toString(),
       ...clientData,
       userId: user.id, // Associate client with current user
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-
-    try {
-      await dispatch({ type: 'ADD_CLIENT', payload: newClient });
-      setShowClientModal(false);
-      console.log('Client added successfully:', newClient);
-    } catch (error) {
-      console.error('Error adding client:', error);
-      alert('Error adding client. Please try again.');
-    }
+    dispatch({ type: 'ADD_CLIENT', payload: newClient });
+    setShowClientModal(false);
   };
 
-  const handleDeleteClient = async (clientId) => {
+  const handleDeleteClient = (clientId) => {
     if (window.confirm('Are you sure you want to delete this client?')) {
-      try {
-        await dispatch({ type: 'DELETE_CLIENT', payload: clientId });
-        console.log('Client deleted successfully');
-      } catch (error) {
-        console.error('Error deleting client:', error);
-        alert('Error deleting client. Please try again.');
-      }
+      dispatch({ type: 'DELETE_CLIENT', payload: clientId });
     }
   };
 
@@ -57,19 +37,8 @@ function Dashboard() {
   const userStats = {
     totalClients: state.clients.length,
     totalAnalyses: state.analyses.length,
-    recentClients: state.clients.slice(-5).reverse()
+    recentClients: state.clients.slice(-5).reverse(),
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -148,9 +117,9 @@ function Dashboard() {
                     {isAdmin() ? 'Administrator' : 'Financial Professional'}
                   </p>
                 </div>
-                <SafeIcon
-                  icon={isAdmin() ? FiIcons.FiShield : FiIcons.FiBriefcase}
-                  className="text-3xl text-purple-500"
+                <SafeIcon 
+                  icon={isAdmin() ? FiIcons.FiShield : FiIcons.FiBriefcase} 
+                  className="text-3xl text-purple-500" 
                 />
               </div>
             </div>
@@ -281,13 +250,15 @@ function Dashboard() {
                           to={`/analysis/${client.id}`}
                           className="bg-green-100 text-green-600 px-4 py-2 rounded-lg hover:bg-green-200 transition-colors"
                         >
-                          <SafeIcon icon={FiTrendingUp} className="inline mr-1" /> Analysis
+                          <SafeIcon icon={FiTrendingUp} className="inline mr-1" />
+                          Analysis
                         </Link>
                         <Link
                           to={`/report/${client.id}`}
                           className="bg-purple-100 text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-200 transition-colors"
                         >
-                          <SafeIcon icon={FiFileText} className="inline mr-1" /> Report
+                          <SafeIcon icon={FiFileText} className="inline mr-1" />
+                          Report
                         </Link>
                         <button
                           onClick={() => handleDeleteClient(client.id)}
@@ -310,13 +281,13 @@ function Dashboard() {
             onSave={handleAddClient}
           />
         )}
-
-        {/* Supabase Test Component - Prominently displayed on Dashboard */}
-        <SupabaseTest />
       </div>
 
       {/* GetStarted Modal */}
-      <GetStartedModal isOpen={showGetStarted} onClose={() => setShowGetStarted(false)} />
+      <GetStartedModal 
+        isOpen={showGetStarted} 
+        onClose={() => setShowGetStarted(false)} 
+      />
     </>
   );
 }

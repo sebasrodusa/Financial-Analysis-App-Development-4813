@@ -82,41 +82,25 @@ function AppContent() {
           <Route
             path="/login"
             element={
-              isAuthenticated ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Login />
-              )
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />
             }
           />
           <Route
             path="/signup"
             element={
-              isAuthenticated ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <SignUp />
-              )
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignUp />
             }
           />
           <Route
             path="/forgot-password"
             element={
-              isAuthenticated ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <ForgotPassword />
-              )
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPassword />
             }
           />
           <Route
             path="/reset-password"
             element={
-              isAuthenticated ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <ResetPassword />
-              )
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <ResetPassword />
             }
           />
           <Route
@@ -213,7 +197,9 @@ function AppContent() {
           {/* Default redirect */}
           <Route
             path="/"
-            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
+            element={
+              <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
+            }
           />
         </Routes>
       </motion.div>
@@ -249,11 +235,13 @@ function App() {
   const questConfig = getQuestConfig();
 
   return (
-    <React.Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    }>
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
       {questConfig ? (
         <QuestProvider {...questConfig}>
           <AuthProvider>

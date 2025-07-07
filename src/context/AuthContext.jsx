@@ -3,18 +3,16 @@ import supabaseClient from '../lib/supabase';
 
 const AuthContext = createContext();
 
-// Define table names
+// Define table name
 const USERS_TABLE = 'users_pt2024';
-const ADMIN_SETTINGS_TABLE = 'admin_settings_pt2024';
-const PENDING_USERS_TABLE = 'pending_users_pt2024';
 
 const initialState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
   users: [],
-  passwordResetTokens: [],
-  emailVerificationTokens: []
+  passwordResetTokens: [], // Store password reset tokens
+  emailVerificationTokens: [] // Store email verification tokens
 };
 
 function authReducer(state, action) {
@@ -41,8 +39,7 @@ function authReducer(state, action) {
     case 'SET_USERS':
       return {
         ...state,
-        users: action.payload,
-        isLoading: false
+        users: action.payload
       };
     case 'ADD_USER':
       return {
@@ -130,8 +127,9 @@ const generateToken = () => {
          Math.random().toString(36).substring(2, 15);
 };
 
-// Simple hash function for demo purposes
+// Simple hash function for demo purposes (in production, use proper bcrypt)
 const hashPassword = async (password) => {
+  // Simple hash for demo - in production use bcrypt
   const encoder = new TextEncoder();
   const data = encoder.encode(password + 'salt');
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -182,7 +180,7 @@ const transformAppUser = (appUser, includePassword = false) => {
   };
 
   if (includePassword && appUser.password) {
-    dbUser.password_hash = appUser.password;
+    dbUser.password_hash = appUser.password; // Will be hashed before insertion
   }
 
   return dbUser;
@@ -199,6 +197,7 @@ export function AuthProvider({ children }) {
       try {
         console.log('Loading users from Supabase...');
         
+        // Load users from Supabase
         const { data: users, error } = await supabaseClient
           .from(USERS_TABLE)
           .select('*');
@@ -207,18 +206,22 @@ export function AuthProvider({ children }) {
           console.error('Error loading users:', error);
         } else if (users) {
           console.log('Loaded users:', users.length);
+          // Transform users to app format
           const appUsers = users.map(transformSupabaseUser);
           dispatch({ type: 'SET_USERS', payload: appUsers });
         }
         
+        // Check for current user in localStorage
         const savedUser = getFromStorage('currentUser');
         if (savedUser) {
+          // Verify user still exists in DB
           const userExists = users?.find(u => u.id === savedUser.id);
           if (userExists) {
             const appUser = transformSupabaseUser(userExists);
             dispatch({ type: 'LOGIN', payload: appUser });
             console.log('Restored user session:', appUser.email);
           } else {
+            // User no longer exists in DB, log them out
             dispatch({ type: 'LOGOUT' });
             localStorage.removeItem('currentUser');
           }
@@ -229,6 +232,7 @@ export function AuthProvider({ children }) {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
       
+      // Clean expired tokens
       dispatch({ type: 'CLEAN_EXPIRED_TOKENS' });
     };
 
@@ -257,6 +261,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('Attempting login for:', email);
       
+      // Find user in Supabase
       const { data: users, error } = await supabaseClient
         .from(USERS_TABLE)
         .select('*')
@@ -302,10 +307,10 @@ export function AuthProvider({ children }) {
         dispatch({ type: 'LOGIN', payload: appUser });
         console.log('Login successful for:', appUser.email);
         return { success: true, user: appUser };
+      } else {
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return { success: false, error: 'Invalid email or password' };
       }
-      
-      dispatch({ type: 'SET_LOADING', payload: false });
-      return { success: false, error: 'Invalid email or password' };
     } catch (error) {
       console.error('Login error:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -323,10 +328,14 @@ export function AuthProvider({ children }) {
     try {
       console.log('Adding new user:', userData.email);
       
+      // Hash password
       const passwordHash = await hashPassword(userData.password || 'temp123');
+      
+      // Transform to DB format
       const dbUser = transformAppUser(userData);
       dbUser.password_hash = passwordHash;
       
+      // Insert into Supabase
       const { data, error } = await supabaseClient
         .from(USERS_TABLE)
         .insert(dbUser)
@@ -339,7 +348,11 @@ export function AuthProvider({ children }) {
       }
       
       console.log('User added successfully:', data);
+      
+      // Transform back to app format
       const newUser = transformSupabaseUser(data);
+      
+      // Add to state
       dispatch({ type: 'ADD_USER', payload: newUser });
       
       return { success: true, user: newUser };
@@ -353,8 +366,10 @@ export function AuthProvider({ children }) {
     try {
       console.log('Updating user:', userData.id);
       
+      // Transform to DB format (without password)
       const dbUser = transformAppUser(userData);
       
+      // Update in Supabase
       const { error } = await supabaseClient
         .from(USERS_TABLE)
         .update(dbUser)
@@ -365,6 +380,7 @@ export function AuthProvider({ children }) {
         return { success: false, error: error.message };
       }
       
+      // Get updated user from Supabase
       const { data: updatedData, error: fetchError } = await supabaseClient
         .from(USERS_TABLE)
         .select('*')
@@ -377,7 +393,11 @@ export function AuthProvider({ children }) {
       }
       
       console.log('User updated successfully');
+      
+      // Transform back to app format
       const updatedUser = transformSupabaseUser(updatedData);
+      
+      // Update in state
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
       
       return { success: true, user: updatedUser };
@@ -395,6 +415,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('Updating email for user:', state.user.id);
       
+      // Get current user from DB to check password
       const { data: userData, error: fetchError } = await supabaseClient
         .from(USERS_TABLE)
         .select('*')
@@ -406,6 +427,7 @@ export function AuthProvider({ children }) {
         return { success: false, error: fetchError.message };
       }
       
+      // Special case for demo accounts
       let passwordValid = false;
       
       if (userData.email === 'sebasrodus+admin@gmail.com' && currentPassword === 'admin1234') {
@@ -413,6 +435,7 @@ export function AuthProvider({ children }) {
       } else if (userData.email === 'advisor@prospertrack.com' && currentPassword === 'advisor123') {
         passwordValid = true;
       } else {
+        // Verify password
         passwordValid = await comparePassword(currentPassword, userData.password_hash);
       }
       
@@ -420,6 +443,7 @@ export function AuthProvider({ children }) {
         return { success: false, error: 'Current password is incorrect' };
       }
       
+      // Check if email already exists
       const { data: existingUsers, error: checkError } = await supabaseClient
         .from(USERS_TABLE)
         .select('id')
@@ -434,6 +458,7 @@ export function AuthProvider({ children }) {
         return { success: false, error: 'Email address is already in use' };
       }
       
+      // Update email
       const { error: updateError } = await supabaseClient
         .from(USERS_TABLE)
         .update({ email: newEmail, updated_at: new Date().toISOString() })
@@ -445,6 +470,8 @@ export function AuthProvider({ children }) {
       }
       
       console.log('Email updated successfully');
+      
+      // Update user in state
       const updatedUser = { ...state.user, email: newEmail };
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
       
@@ -463,6 +490,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('Updating password for user:', state.user.id);
       
+      // Get current user from DB
       const { data: userData, error: fetchError } = await supabaseClient
         .from(USERS_TABLE)
         .select('*')
@@ -474,6 +502,7 @@ export function AuthProvider({ children }) {
         return { success: false, error: fetchError.message };
       }
       
+      // Special case for demo accounts
       let passwordValid = false;
       
       if (userData.email === 'sebasrodus+admin@gmail.com' && currentPassword === 'admin1234') {
@@ -481,6 +510,7 @@ export function AuthProvider({ children }) {
       } else if (userData.email === 'advisor@prospertrack.com' && currentPassword === 'advisor123') {
         passwordValid = true;
       } else {
+        // Verify current password
         passwordValid = await comparePassword(currentPassword, userData.password_hash);
       }
       
@@ -488,8 +518,10 @@ export function AuthProvider({ children }) {
         return { success: false, error: 'Current password is incorrect' };
       }
       
+      // Hash new password
       const passwordHash = await hashPassword(newPassword);
       
+      // Update password
       const { error: updateError } = await supabaseClient
         .from(USERS_TABLE)
         .update({ 
@@ -504,6 +536,7 @@ export function AuthProvider({ children }) {
       }
       
       console.log('Password updated successfully');
+      
       return { success: true };
     } catch (error) {
       console.error('Error updating password:', error);
@@ -515,6 +548,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('Sending password reset email to:', email);
       
+      // Check if user exists
       const { data: users, error } = await supabaseClient
         .from(USERS_TABLE)
         .select('id, is_active')
@@ -530,8 +564,10 @@ export function AuthProvider({ children }) {
       }
       
       const userId = users[0].id;
+      
+      // Generate reset token
       const token = generateToken();
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
       
       const resetToken = {
         id: `reset-${Date.now()}`,
@@ -544,6 +580,8 @@ export function AuthProvider({ children }) {
       
       dispatch({ type: 'ADD_PASSWORD_RESET_TOKEN', payload: resetToken });
       
+      // In a real app, you would send an email here
+      // For demo purposes, show link in an alert
       const resetLink = `${window.location.origin}/#/reset-password?token=${token}`;
       console.log('Password reset link:', resetLink);
       alert(`Password Reset Link (since we don't have real email): ${resetLink}`);
@@ -579,8 +617,10 @@ export function AuthProvider({ children }) {
         return { success: false, error: 'Invalid or expired reset token' };
       }
       
+      // Hash new password
       const passwordHash = await hashPassword(newPassword);
       
+      // Update password in DB
       const { error } = await supabaseClient
         .from(USERS_TABLE)
         .update({ 
@@ -594,7 +634,9 @@ export function AuthProvider({ children }) {
         return { success: false, error: error.message };
       }
       
+      // Mark token as used
       dispatch({ type: 'USE_PASSWORD_RESET_TOKEN', payload: token });
+      
       console.log('Password reset successfully');
       
       return { success: true };
@@ -608,6 +650,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('Deleting user:', userId);
       
+      // Check if user is admin
       const { data: userData, error: fetchError } = await supabaseClient
         .from(USERS_TABLE)
         .select('role')
@@ -623,6 +666,7 @@ export function AuthProvider({ children }) {
         return { success: false, error: 'Cannot delete admin users' };
       }
       
+      // Delete user from Supabase
       const { error } = await supabaseClient
         .from(USERS_TABLE)
         .delete()
@@ -634,6 +678,8 @@ export function AuthProvider({ children }) {
       }
       
       console.log('User deleted successfully');
+      
+      // Update state
       dispatch({ type: 'DELETE_USER', payload: userId });
       
       return { success: true };
@@ -647,6 +693,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('Toggling user status:', userId);
       
+      // Get current status
       const { data: userData, error: fetchError } = await supabaseClient
         .from(USERS_TABLE)
         .select('is_active')
@@ -660,6 +707,7 @@ export function AuthProvider({ children }) {
       
       const newStatus = !userData.is_active;
       
+      // Update status
       const { error } = await supabaseClient
         .from(USERS_TABLE)
         .update({ 
@@ -673,6 +721,7 @@ export function AuthProvider({ children }) {
         return { success: false, error: error.message };
       }
       
+      // Update user in state
       const { data: updatedData, error: refreshError } = await supabaseClient
         .from(USERS_TABLE)
         .select('*')
@@ -687,6 +736,7 @@ export function AuthProvider({ children }) {
       }
       
       console.log('User status updated successfully');
+      
       return { success: true };
     } catch (error) {
       console.error('Error toggling user status:', error);
@@ -694,6 +744,7 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Role checking functions
   const isAdmin = () => {
     return state.user?.role === 'admin';
   };
@@ -706,79 +757,30 @@ export function AuthProvider({ children }) {
     if (!state.user) return false;
     if (state.user.role === 'admin') return true;
 
+    // Define permissions for financial professionals
     const fpPermissions = ['clients', 'analyses', 'reports', 'calculators'];
     return fpPermissions.includes(permission);
   };
 
+  // Admin-specific functions
   const getAdminSettings = async () => {
-    try {
-      const { data, error } = await supabaseClient
-        .from(ADMIN_SETTINGS_TABLE)
-        .select('*')
-        .limit(1)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (!data) {
-        const { data: created } = await supabaseClient
-          .from(ADMIN_SETTINGS_TABLE)
-          .insert({ auto_approve_registrations: false })
-          .select()
-          .single();
-        return {
-          success: true,
-          settings: {
-            autoApproveRegistrations: created.auto_approve_registrations
-          }
-        };
+    return {
+      success: true,
+      settings: {
+        autoApproveRegistrations: false
       }
-
-      return {
-        success: true,
-        settings: {
-          autoApproveRegistrations: data.auto_approve_registrations
-        }
-      };
-    } catch (error) {
-      console.error('Error getting admin settings:', error);
-      return { success: false, error: 'Failed to load settings' };
-    }
+    };
   };
 
   const updateAdminSettings = async (settings) => {
-    try {
-      const { error } = await supabaseClient
-        .from(ADMIN_SETTINGS_TABLE)
-        .update({
-          auto_approve_registrations: settings.autoApproveRegistrations,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', 1);
-
-      if (error) {
-        const { error: insertError } = await supabaseClient
-          .from(ADMIN_SETTINGS_TABLE)
-          .insert({ auto_approve_registrations: settings.autoApproveRegistrations });
-        if (insertError) throw insertError;
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error updating admin settings:', error);
-      return { success: false, error: 'Failed to update settings' };
-    }
+    // In a real app, this would save to a database
+    return { success: true };
   };
 
   const getPendingUsers = async () => {
     try {
-      const { data, error } = await supabaseClient
-        .from(PENDING_USERS_TABLE)
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at');
-      if (error) throw error;
-      return { success: true, users: data || [] };
+      // In a real app, you would fetch pending users from a separate table
+      return { success: true, users: [] };
     } catch (error) {
       console.error('Error getting pending users:', error);
       return { success: false, error: 'Failed to get pending users' };
@@ -786,58 +788,21 @@ export function AuthProvider({ children }) {
   };
 
   const approveUser = async (userId) => {
-    try {
-      const { data: pending, error } = await supabaseClient
-        .from(PENDING_USERS_TABLE)
-        .select('*')
-        .eq('id', userId)
-        .single();
-      if (error || !pending) throw error || new Error('Pending user not found');
-
-      const passwordHash = await hashPassword('temp123');
-      const { data: newUser, error: insertError } = await supabaseClient
-        .from(USERS_TABLE)
-        .insert({
-          email: pending.email,
-          first_name: pending.first_name,
-          last_name: pending.last_name,
-          role: pending.role,
-          company: pending.company,
-          phone: pending.phone,
-          bio: pending.bio,
-          password_hash: passwordHash,
-          is_active: true,
-          has_completed_onboarding: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-      if (insertError) throw insertError;
-
-      await supabaseClient.from(PENDING_USERS_TABLE).delete().eq('id', userId);
-      dispatch({ type: 'ADD_USER', payload: transformSupabaseUser(newUser) });
-      return { success: true };
-    } catch (error) {
-      console.error('Error approving user:', error);
-      return { success: false, error: 'Failed to approve user' };
-    }
+    // In a real app, you would update the user's status
+    return { success: true };
   };
 
   const rejectUser = async (userId) => {
-    try {
-      await supabaseClient.from(PENDING_USERS_TABLE).delete().eq('id', userId);
-      return { success: true };
-    } catch (error) {
-      console.error('Error rejecting user:', error);
-      return { success: false, error: 'Failed to reject user' };
-    }
+    // In a real app, you would delete the pending user
+    return { success: true };
   };
 
+  // Email-based login (simplified)
   const sendEmailCode = async (email) => {
     try {
       console.log('Sending email code to:', email);
       
+      // Check if user exists
       const { data: users, error } = await supabaseClient
         .from(USERS_TABLE)
         .select('id, is_active')
@@ -852,14 +817,18 @@ export function AuthProvider({ children }) {
         return { success: false, error: 'No active user found with this email address' };
       }
       
+      // Generate a simple code for demo
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       
+      // Store the code temporarily
       saveToStorage(`emailCode_${email}`, {
         code,
-        expires: Date.now() + 10 * 60 * 1000
+        expires: Date.now() + 10 * 60 * 1000 // 10 minutes
       });
       
+      // Show code in alert for demo
       alert(`Demo: Your verification code is ${code}`);
+      
       return { success: true };
     } catch (error) {
       console.error('Error sending email code:', error);
@@ -881,6 +850,7 @@ export function AuthProvider({ children }) {
         return { success: false, error: 'Invalid code' };
       }
       
+      // Find user
       const { data: users, error } = await supabaseClient
         .from(USERS_TABLE)
         .select('*')
@@ -896,10 +866,13 @@ export function AuthProvider({ children }) {
         return { success: false, error: 'User not found' };
       }
       
+      // Log in user
       const appUser = transformSupabaseUser(users[0]);
       dispatch({ type: 'LOGIN', payload: appUser });
       
+      // Clean up
       localStorage.removeItem(`emailCode_${email}`);
+      
       console.log('Email code verified and user logged in');
       
       return { success: true, user: appUser };
@@ -909,10 +882,12 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Sign up function
   const signUp = async (userData) => {
     try {
       console.log('Signing up new user:', userData.email);
       
+      // Check if email already exists
       const { data: existingUsers, error: checkError } = await supabaseClient
         .from(USERS_TABLE)
         .select('id')
@@ -927,9 +902,11 @@ export function AuthProvider({ children }) {
         return { success: false, error: 'Email already registered' };
       }
       
+      // Set a default password
       const defaultPassword = 'temp123';
       const passwordHash = await hashPassword(defaultPassword);
       
+      // Prepare user data
       const dbUser = {
         email: userData.email,
         first_name: userData.firstName,
@@ -945,6 +922,7 @@ export function AuthProvider({ children }) {
         updated_at: new Date().toISOString()
       };
       
+      // Insert into Supabase
       const { data: newUser, error } = await supabaseClient
         .from(USERS_TABLE)
         .insert(dbUser)
@@ -957,7 +935,11 @@ export function AuthProvider({ children }) {
       }
       
       console.log('User signed up successfully:', newUser);
+      
+      // Transform to app format
       const appUser = transformSupabaseUser(newUser);
+      
+      // Add to state
       dispatch({ type: 'ADD_USER', payload: appUser });
       
       return { success: true, user: appUser };
@@ -973,6 +955,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('Completing onboarding for user:', state.user.id);
       
+      // Update onboarding status in DB
       const { error } = await supabaseClient
         .from(USERS_TABLE)
         .update({ 
@@ -986,6 +969,7 @@ export function AuthProvider({ children }) {
         return;
       }
       
+      // Update user in state
       const updatedUser = { ...state.user, hasCompletedOnboarding: true };
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
       
@@ -994,8 +978,6 @@ export function AuthProvider({ children }) {
       console.error('Error completing onboarding:', error);
     }
   };
-
-  const needsOnboarding = state.user?.hasCompletedOnboarding === false;
 
   return (
     <AuthContext.Provider value={{
@@ -1022,8 +1004,7 @@ export function AuthProvider({ children }) {
       sendEmailCode,
       verifyEmailCode,
       signUp,
-      completeOnboarding,
-      needsOnboarding
+      completeOnboarding
     }}>
       {children}
     </AuthContext.Provider>
