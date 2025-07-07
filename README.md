@@ -1,0 +1,104 @@
+# ProsperTrack™ Financial Analysis Platform
+
+ProsperTrack™ is a comprehensive financial analysis platform designed for financial professionals to manage clients, create financial analyses, generate reports, and provide financial planning tools.
+
+## Features
+
+- **Client Management**: Create and manage client profiles with detailed information
+- **Financial Analysis**: Perform comprehensive financial analyses for clients
+- **Report Generation**: Generate professional PDF reports
+- **Financial Tools**: Use calculators for life insurance needs and debt stacking strategies
+- **User Management**: Admin panel for managing users and permissions
+- **Responsive Design**: Works on desktop and mobile devices
+
+## Tech Stack
+
+- **Frontend**: React, Tailwind CSS, Framer Motion
+- **Database**: Supabase (PostgreSQL)
+- **PDF Generation**: React-PDF
+- **Charts**: ECharts
+- **Authentication**: Custom authentication with Supabase
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/prospertrack.git
+cd prospertrack
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Create a `.env` file in the root directory based on `.env.example` and add your Supabase credentials:
+```
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+## Database Setup
+
+1. Create a new Supabase project at [supabase.com](https://supabase.com)
+
+2. Run the database setup script (`database-setup.sql`) in the Supabase SQL editor to create the required tables:
+   - Go to your Supabase project dashboard
+   - Navigate to "SQL Editor"
+   - Create a "New query"
+   - Copy and paste the contents of `database-setup.sql`
+   - Run the query
+
+## Running the Application
+
+Start the development server:
+```bash
+npm run dev
+```
+
+The application will be available at http://localhost:5173
+
+## Building for Production
+
+```bash
+npm run build
+```
+
+The build output will be in the `dist` folder, which can be deployed to any static hosting service.
+
+## Demo Credentials
+
+For testing purposes, you can use these demo accounts:
+
+- **Admin**: sebasrodus+admin@gmail.com / admin1234
+- **Advisor**: advisor@prospertrack.com / advisor123
+
+## Project Structure
+
+```
+prospertrack/
+├── public/               # Public assets
+├── src/
+│   ├── common/           # Common components and utilities
+│   ├── components/       # React components
+│   ├── context/          # Context providers
+│   ├── lib/              # Library integrations
+│   ├── config/           # Configuration files
+│   ├── App.jsx           # Main App component
+│   ├── main.jsx          # Entry point
+│   └── index.css         # Global styles
+├── .env.example          # Example environment variables
+├── database-setup.sql    # Database setup script
+├── package.json          # Dependencies and scripts
+└── README.md             # Project documentation
+```
+
+## Security Notes
+
+- This application uses bcrypt for password hashing
+- Environment variables are used for sensitive configuration
+- Row-level security is implemented in the database
+
+## License
+
+This project is proprietary software. All rights reserved.
