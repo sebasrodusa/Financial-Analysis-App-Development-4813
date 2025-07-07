@@ -1,45 +1,43 @@
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'https://epzpmhlwwwivxtqxulys.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVwenBtaGx3d3dpdnh0cXh1bHlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3MzAyNDEsImV4cCI6MjA2NzMwNjI0MX0.XMtl9-jsFVexWwkuHSNfyQIuIwmtI-TsxS50Gcrgz64'
+const SUPABASE_URL = 'https://clbshhnjniekomqcteum.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsYnNoaG5qbmlla29tcWN0ZXVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1MDkyNjgsImV4cCI6MjA2NzA4NTI2OH0.i84Yfym-6m1S_M1i8VqPiQkzUsQhieoICLoojc2nxDE'
 
-// Simple fallback client for when Supabase is not needed
-const createFallbackClient = () => ({
+if (SUPABASE_URL === 'https://<PROJECT-ID>.supabase.co' || SUPABASE_ANON_KEY === '<ANON_KEY>') {
+  throw new Error('Missing Supabase variables');
+}
+
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-    signInWithPassword: () => Promise.resolve({ data: null, error: { message: 'Using simplified auth' } }),
-    signOut: () => Promise.resolve({ error: null }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
-  },
-  from: () => ({
-    select: () => ({ data: [], error: null }),
-    insert: () => ({ data: null, error: { message: 'Using simplified storage' } }),
-    update: () => ({ data: null, error: { message: 'Using simplified storage' } }),
-    delete: () => ({ data: null, error: { message: 'Using simplified storage' } }),
-    single: function() { return this; },
-    eq: function() { return this; },
-    order: function() { return this; },
-    limit: function() { return this; }
-  })
+    persistSession: true,
+    autoRefreshToken: true
+  }
 });
 
-let supabaseClient;
-
-try {
-  if (SUPABASE_URL === 'https://<PROJECT-ID>.supabase.co' || SUPABASE_ANON_KEY === '<ANON_KEY>') {
-    console.warn('Using fallback client - Supabase not configured');
-    supabaseClient = createFallbackClient();
-  } else {
-    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true
-      }
-    });
+// Test connection and create tables if needed
+const initializeDatabase = async () => {
+  try {
+    console.log('Initializing Supabase database...');
+    
+    // Test connection
+    const { data, error } = await supabaseClient
+      .from('users_pt2024')
+      .select('count', { count: 'exact', head: true });
+    
+    if (error && error.code === '42P01') {
+      console.log('Tables do not exist, they need to be created in Supabase dashboard');
+      console.log('Please create the required tables in your Supabase dashboard');
+    } else if (error) {
+      console.error('Database connection error:', error);
+    } else {
+      console.log('Database connection successful');
+    }
+  } catch (error) {
+    console.error('Database initialization error:', error);
   }
-} catch (error) {
-  console.warn('Error creating Supabase client, using fallback:', error);
-  supabaseClient = createFallbackClient();
-}
+};
+
+// Initialize on import
+initializeDatabase();
 
 export default supabaseClient;

@@ -3,62 +3,16 @@ import supabaseClient from '../lib/supabase';
 
 const AuthContext = createContext();
 
+// Define table name
+const USERS_TABLE = 'users_pt2024';
+
 const initialState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  users: [
-    // Default admin user
-    {
-      id: 'admin-1',
-      email: 'sebasrodus+admin@gmail.com',
-      password: 'admin1234',
-      firstName: 'Admin',
-      lastName: 'User',
-      role: 'admin',
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      hasCompletedOnboarding: true,
-      profilePhoto: null,
-      phone: '+1 (555) 123-4567',
-      company: 'ProsperTrack Inc.',
-      bio: 'System administrator with extensive experience in financial technology platforms.'
-    },
-    // Sample financial professional
-    {
-      id: 'fp-1',
-      email: 'advisor@prospertrack.com',
-      password: 'advisor123',
-      firstName: 'John',
-      lastName: 'Smith',
-      role: 'financial_professional',
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      hasCompletedOnboarding: true,
-      profilePhoto: null,
-      phone: '+1 (555) 234-5678',
-      company: 'Smith Financial Advisory',
-      bio: 'Certified Financial Planner with over 10 years of experience helping clients achieve their financial goals.'
-    },
-    // Additional demo users
-    {
-      id: 'fp-2',
-      email: 'jane.doe@prospertrack.com',
-      password: 'demo123',
-      firstName: 'Jane',
-      lastName: 'Doe',
-      role: 'financial_professional',
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      hasCompletedOnboarding: true,
-      profilePhoto: null,
-      phone: '+1 (555) 345-6789',
-      company: 'Doe Wealth Management',
-      bio: 'Investment advisor specializing in retirement planning and portfolio management.'
-    }
-  ],
-  passwordResetTokens: [], // Store password reset tokens
-  emailVerificationTokens: [] // Store email verification tokens
+  users: [],
+  passwordResetTokens: [],
+  emailVerificationTokens: []
 };
 
 function authReducer(state, action) {
@@ -81,6 +35,11 @@ function authReducer(state, action) {
       return {
         ...state,
         isLoading: action.payload
+      };
+    case 'SET_USERS':
+      return {
+        ...state,
+        users: action.payload
       };
     case 'ADD_USER':
       return {
@@ -107,11 +66,6 @@ function authReducer(state, action) {
           user.id === action.payload ? { ...user, isActive: !user.isActive } : user
         )
       };
-    case 'LOAD_USERS':
-      return {
-        ...state,
-        users: action.payload
-      };
     case 'ADD_PASSWORD_RESET_TOKEN':
       return {
         ...state,
@@ -124,7 +78,7 @@ function authReducer(state, action) {
           token.token === action.payload ? { ...token, used: true } : token
         )
       };
-    case 'CLEAN_EXPIRED_TOKENS':
+    case 'CLEAN_EXPIRED_TOKENS': {
       const now = new Date();
       return {
         ...state,
@@ -135,6 +89,7 @@ function authReducer(state, action) {
           token => new Date(token.expiresAt) > now
         )
       };
+    }
     default:
       return state;
   }
@@ -172,109 +127,182 @@ const generateToken = () => {
          Math.random().toString(36).substring(2, 15);
 };
 
+// Simple hash function for demo purposes
+const hashPassword = async (password) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + 'salt');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+// Compare password with hashed password
+const comparePassword = async (password, hash) => {
+  const hashedInput = await hashPassword(password);
+  return hashedInput === hash;
+};
+
+// Transform Supabase user to app user
+const transformSupabaseUser = (dbUser) => {
+  if (!dbUser) return null;
+  
+  return {
+    id: dbUser.id,
+    email: dbUser.email,
+    firstName: dbUser.first_name,
+    lastName: dbUser.last_name,
+    role: dbUser.role || 'financial_professional',
+    isActive: dbUser.is_active,
+    hasCompletedOnboarding: dbUser.has_completed_onboarding,
+    profilePhoto: dbUser.profile_photo,
+    company: dbUser.company,
+    phone: dbUser.phone,
+    bio: dbUser.bio,
+    createdAt: dbUser.created_at
+  };
+};
+
+// Transform app user to Supabase user format
+const transformAppUser = (appUser, includePassword = false) => {
+  const dbUser = {
+    email: appUser.email,
+    first_name: appUser.firstName,
+    last_name: appUser.lastName,
+    role: appUser.role || 'financial_professional',
+    is_active: appUser.isActive !== undefined ? appUser.isActive : true,
+    has_completed_onboarding: appUser.hasCompletedOnboarding !== undefined ? appUser.hasCompletedOnboarding : false,
+    profile_photo: appUser.profilePhoto,
+    company: appUser.company,
+    phone: appUser.phone,
+    bio: appUser.bio,
+    updated_at: new Date().toISOString()
+  };
+
+  if (includePassword && appUser.password) {
+    dbUser.password_hash = appUser.password;
+  }
+
+  return dbUser;
+};
+
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Load data from localStorage on mount
+  // Load data on mount
   useEffect(() => {
-    const loadData = () => {
+    const loadInitialData = async () => {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      
       try {
-        const savedUser = getFromStorage('currentUser');
-        const savedUsers = getFromStorage('allUsers');
-        const savedPasswordResetTokens = getFromStorage('passwordResetTokens', []);
-        const savedEmailVerificationTokens = getFromStorage('emailVerificationTokens', []);
+        console.log('Loading users from Supabase...');
         
-        // Ensure default users are always available
-        let mergedUsers = savedUsers;
-        
-        // If no saved users or if saved users is not an array, use initial users
-        if (!mergedUsers || !Array.isArray(mergedUsers) || mergedUsers.length === 0) {
-          mergedUsers = initialState.users;
-        } else {
-          // Ensure default admin and demo users are always available
-          const defaultUserEmails = initialState.users.map(u => u.email);
-          const existingEmails = mergedUsers.map(u => u.email);
+        const { data: users, error } = await supabaseClient
+          .from(USERS_TABLE)
+          .select('*');
           
-          // Add any missing default users
-          initialState.users.forEach(defaultUser => {
-            if (!existingEmails.includes(defaultUser.email)) {
-              mergedUsers.push(defaultUser);
-            }
-          });
+        if (error) {
+          console.error('Error loading users:', error);
+        } else if (users) {
+          console.log('Loaded users:', users.length);
+          const appUsers = users.map(transformSupabaseUser);
+          dispatch({ type: 'SET_USERS', payload: appUsers });
         }
         
-        // Make sure passwords are preserved
-        mergedUsers = mergedUsers.map(user => {
-          // If user has no password and it's a default user, assign the default password
-          if (!user.password) {
-            const defaultUser = initialState.users.find(u => u.email === user.email);
-            if (defaultUser) {
-              return { ...user, password: defaultUser.password };
-            }
-          }
-          return user;
-        });
-
-        dispatch({ type: 'LOAD_USERS', payload: mergedUsers });
-
+        const savedUser = getFromStorage('currentUser');
         if (savedUser) {
-          // Find the matching user in the users array to ensure password is preserved
-          const matchedUser = mergedUsers.find(u => u.id === savedUser.id);
-          if (matchedUser) {
-            dispatch({ type: 'LOGIN', payload: savedUser });
+          const userExists = users?.find(u => u.id === savedUser.id);
+          if (userExists) {
+            const appUser = transformSupabaseUser(userExists);
+            dispatch({ type: 'LOGIN', payload: appUser });
+            console.log('Restored user session:', appUser.email);
           } else {
-            dispatch({ type: 'SET_LOADING', payload: false });
+            dispatch({ type: 'LOGOUT' });
+            localStorage.removeItem('currentUser');
           }
-        } else {
-          dispatch({ type: 'SET_LOADING', payload: false });
         }
-        
-        // Clean expired tokens on load
-        dispatch({ type: 'CLEAN_EXPIRED_TOKENS' });
       } catch (error) {
-        console.error('Error loading auth data:', error);
+        console.error('Error during initial data load:', error);
+      } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
+      
+      dispatch({ type: 'CLEAN_EXPIRED_TOKENS' });
     };
 
-    loadData();
+    loadInitialData();
   }, []);
 
-  // Save data to localStorage whenever state changes
+  // Save tokens whenever they change
   useEffect(() => {
-    try {
-      if (state.user) {
-        saveToStorage('currentUser', state.user);
-      } else {
-        localStorage.removeItem('currentUser');
-      }
-      
-      saveToStorage('allUsers', state.users);
-      saveToStorage('passwordResetTokens', state.passwordResetTokens);
-      saveToStorage('emailVerificationTokens', state.emailVerificationTokens);
-    } catch (error) {
-      console.error('Error saving auth data:', error);
+    saveToStorage('passwordResetTokens', state.passwordResetTokens);
+    saveToStorage('emailVerificationTokens', state.emailVerificationTokens);
+  }, [state.passwordResetTokens, state.emailVerificationTokens]);
+
+  // Save current user to localStorage
+  useEffect(() => {
+    if (state.user) {
+      saveToStorage('currentUser', state.user);
+    } else {
+      localStorage.removeItem('currentUser');
     }
-  }, [state.user, state.users, state.passwordResetTokens, state.emailVerificationTokens]);
+  }, [state.user]);
 
   // Authentication functions
   const login = async (email, password) => {
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
-      const user = state.users.find(u => 
-        u.email === email && u.password === password && u.isActive
-      );
-
-      if (user) {
-        // Create a copy without the password for the session
-        const { password: _, ...userWithoutPassword } = user;
-        dispatch({ type: 'LOGIN', payload: userWithoutPassword });
-        return { success: true, user: userWithoutPassword };
-      } else {
+      console.log('Attempting login for:', email);
+      
+      const { data: users, error } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('*')
+        .eq('email', email)
+        .eq('is_active', true);
+        
+      if (error) {
+        console.error('Login error:', error);
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return { success: false, error: 'Database error. Please try again.' };
+      }
+      
+      if (!users || users.length === 0) {
+        console.log('No user found with email:', email);
         dispatch({ type: 'SET_LOADING', payload: false });
         return { success: false, error: 'Invalid email or password' };
       }
+      
+      const user = users[0];
+      console.log('Found user:', user.email);
+      
+      // For demo accounts, check hardcoded passwords first
+      if (email === 'sebasrodus+admin@gmail.com' && password === 'admin1234') {
+        const appUser = transformSupabaseUser(user);
+        dispatch({ type: 'LOGIN', payload: appUser });
+        console.log('Admin login successful');
+        return { success: true, user: appUser };
+      }
+      
+      if (email === 'advisor@prospertrack.com' && password === 'advisor123') {
+        const appUser = transformSupabaseUser(user);
+        dispatch({ type: 'LOGIN', payload: appUser });
+        console.log('Advisor login successful');
+        return { success: true, user: appUser };
+      }
+      
+      // Regular password check
+      const passwordMatches = await comparePassword(password, user.password_hash);
+      console.log('Password matches:', passwordMatches);
+      
+      if (passwordMatches) {
+        const appUser = transformSupabaseUser(user);
+        dispatch({ type: 'LOGIN', payload: appUser });
+        console.log('Login successful for:', appUser.email);
+        return { success: true, user: appUser };
+      }
+      
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return { success: false, error: 'Invalid email or password' };
     } catch (error) {
       console.error('Login error:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -283,76 +311,145 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    console.log('Logging out user');
     dispatch({ type: 'LOGOUT' });
     localStorage.removeItem('currentUser');
   };
 
-  const addUser = (userData) => {
-    const newUser = {
-      id: `user-${Date.now()}`,
-      ...userData,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      hasCompletedOnboarding: true,
-      profilePhoto: null
-    };
-
-    dispatch({ type: 'ADD_USER', payload: newUser });
-    return { success: true, user: newUser };
-  };
-
-  const updateUser = (userData) => {
-    // Find the existing user to preserve the password
-    const existingUser = state.users.find(u => u.id === userData.id);
-    if (!existingUser) {
-      return { success: false, error: 'User not found' };
+  const addUser = async (userData) => {
+    try {
+      console.log('Adding new user:', userData.email);
+      
+      const passwordHash = await hashPassword(userData.password || 'temp123');
+      const dbUser = transformAppUser(userData);
+      dbUser.password_hash = passwordHash;
+      
+      const { data, error } = await supabaseClient
+        .from(USERS_TABLE)
+        .insert(dbUser)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Error adding user:', error);
+        return { success: false, error: error.message };
+      }
+      
+      console.log('User added successfully:', data);
+      const newUser = transformSupabaseUser(data);
+      dispatch({ type: 'ADD_USER', payload: newUser });
+      
+      return { success: true, user: newUser };
+    } catch (error) {
+      console.error('Error adding user:', error);
+      return { success: false, error: 'Failed to add user' };
     }
-
-    // Ensure password is preserved if not explicitly changed
-    const updatedUser = {
-      ...userData,
-      password: userData.password || existingUser.password
-    };
-
-    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-    return { success: true };
   };
 
-  // Enhanced update functions for profile management
+  const updateUser = async (userData) => {
+    try {
+      console.log('Updating user:', userData.id);
+      
+      const dbUser = transformAppUser(userData);
+      
+      const { error } = await supabaseClient
+        .from(USERS_TABLE)
+        .update(dbUser)
+        .eq('id', userData.id);
+        
+      if (error) {
+        console.error('Error updating user:', error);
+        return { success: false, error: error.message };
+      }
+      
+      const { data: updatedData, error: fetchError } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('*')
+        .eq('id', userData.id)
+        .single();
+        
+      if (fetchError) {
+        console.error('Error fetching updated user:', fetchError);
+        return { success: false, error: fetchError.message };
+      }
+      
+      console.log('User updated successfully');
+      const updatedUser = transformSupabaseUser(updatedData);
+      dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+      
+      return { success: true, user: updatedUser };
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return { success: false, error: 'Failed to update user' };
+    }
+  };
+
   const updateUserEmail = async (newEmail, currentPassword) => {
     if (!state.user) {
       return { success: false, error: 'User not authenticated' };
     }
 
-    // Find the full user object with password
-    const fullUser = state.users.find(u => u.id === state.user.id);
-    if (!fullUser) {
-      return { success: false, error: 'User not found' };
+    try {
+      console.log('Updating email for user:', state.user.id);
+      
+      const { data: userData, error: fetchError } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('*')
+        .eq('id', state.user.id)
+        .single();
+        
+      if (fetchError) {
+        console.error('Error fetching user:', fetchError);
+        return { success: false, error: fetchError.message };
+      }
+      
+      let passwordValid = false;
+      
+      if (userData.email === 'sebasrodus+admin@gmail.com' && currentPassword === 'admin1234') {
+        passwordValid = true;
+      } else if (userData.email === 'advisor@prospertrack.com' && currentPassword === 'advisor123') {
+        passwordValid = true;
+      } else {
+        passwordValid = await comparePassword(currentPassword, userData.password_hash);
+      }
+      
+      if (!passwordValid) {
+        return { success: false, error: 'Current password is incorrect' };
+      }
+      
+      const { data: existingUsers, error: checkError } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('id')
+        .eq('email', newEmail);
+        
+      if (checkError) {
+        console.error('Error checking email:', checkError);
+        return { success: false, error: checkError.message };
+      }
+      
+      if (existingUsers && existingUsers.length > 0) {
+        return { success: false, error: 'Email address is already in use' };
+      }
+      
+      const { error: updateError } = await supabaseClient
+        .from(USERS_TABLE)
+        .update({ email: newEmail, updated_at: new Date().toISOString() })
+        .eq('id', state.user.id);
+        
+      if (updateError) {
+        console.error('Error updating email:', updateError);
+        return { success: false, error: updateError.message };
+      }
+      
+      console.log('Email updated successfully');
+      const updatedUser = { ...state.user, email: newEmail };
+      dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating email:', error);
+      return { success: false, error: 'Failed to update email' };
     }
-
-    // Verify current password
-    if (currentPassword !== fullUser.password) {
-      return { success: false, error: 'Current password is incorrect' };
-    }
-
-    // Check if email is already taken
-    const emailExists = state.users.find(u => 
-      u.email === newEmail && u.id !== state.user.id
-    );
-
-    if (emailExists) {
-      return { success: false, error: 'Email address is already in use' };
-    }
-
-    // Update user email
-    const updatedUser = {
-      ...fullUser,
-      email: newEmail,
-      updatedAt: new Date().toISOString()
-    };
-
-    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-    return { success: true };
   };
 
   const updateUserPassword = async (currentPassword, newPassword) => {
@@ -360,62 +457,100 @@ export function AuthProvider({ children }) {
       return { success: false, error: 'User not authenticated' };
     }
 
-    // Find the full user object with password
-    const fullUser = state.users.find(u => u.id === state.user.id);
-    if (!fullUser) {
-      return { success: false, error: 'User not found' };
+    try {
+      console.log('Updating password for user:', state.user.id);
+      
+      const { data: userData, error: fetchError } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('*')
+        .eq('id', state.user.id)
+        .single();
+        
+      if (fetchError) {
+        console.error('Error fetching user:', fetchError);
+        return { success: false, error: fetchError.message };
+      }
+      
+      let passwordValid = false;
+      
+      if (userData.email === 'sebasrodus+admin@gmail.com' && currentPassword === 'admin1234') {
+        passwordValid = true;
+      } else if (userData.email === 'advisor@prospertrack.com' && currentPassword === 'advisor123') {
+        passwordValid = true;
+      } else {
+        passwordValid = await comparePassword(currentPassword, userData.password_hash);
+      }
+      
+      if (!passwordValid) {
+        return { success: false, error: 'Current password is incorrect' };
+      }
+      
+      const passwordHash = await hashPassword(newPassword);
+      
+      const { error: updateError } = await supabaseClient
+        .from(USERS_TABLE)
+        .update({ 
+          password_hash: passwordHash,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', state.user.id);
+        
+      if (updateError) {
+        console.error('Error updating password:', updateError);
+        return { success: false, error: updateError.message };
+      }
+      
+      console.log('Password updated successfully');
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating password:', error);
+      return { success: false, error: 'Failed to update password' };
     }
-
-    // Verify current password
-    if (currentPassword !== fullUser.password) {
-      return { success: false, error: 'Current password is incorrect' };
-    }
-
-    // Update user password
-    const updatedUser = {
-      ...fullUser,
-      password: newPassword,
-      updatedAt: new Date().toISOString()
-    };
-
-    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-    return { success: true };
   };
 
-  // Password reset functionality
   const sendPasswordResetEmail = async (email) => {
-    const user = state.users.find(u => u.email === email && u.isActive);
-    
-    if (!user) {
-      return { success: false, error: 'No user found with this email address' };
+    try {
+      console.log('Sending password reset email to:', email);
+      
+      const { data: users, error } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('id, is_active')
+        .eq('email', email);
+        
+      if (error) {
+        console.error('Error checking user:', error);
+        return { success: false, error: error.message };
+      }
+      
+      if (!users || users.length === 0 || !users[0].is_active) {
+        return { success: false, error: 'No active user found with this email address' };
+      }
+      
+      const userId = users[0].id;
+      const token = generateToken();
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      
+      const resetToken = {
+        id: `reset-${Date.now()}`,
+        userId,
+        token,
+        expiresAt: expiresAt.toISOString(),
+        used: false,
+        createdAt: new Date().toISOString()
+      };
+      
+      dispatch({ type: 'ADD_PASSWORD_RESET_TOKEN', payload: resetToken });
+      
+      const resetLink = `${window.location.origin}/#/reset-password?token=${token}`;
+      console.log('Password reset link:', resetLink);
+      alert(`Password Reset Link (since we don't have real email): ${resetLink}`);
+      
+      return { success: true, resetLink };
+    } catch (error) {
+      console.error('Error sending reset email:', error);
+      return { success: false, error: 'Failed to send password reset' };
     }
-
-    const token = generateToken();
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
-
-    const resetToken = {
-      id: `reset-${Date.now()}`,
-      userId: user.id,
-      token,
-      expiresAt: expiresAt.toISOString(),
-      used: false,
-      createdAt: new Date().toISOString()
-    };
-
-    dispatch({ type: 'ADD_PASSWORD_RESET_TOKEN', payload: resetToken });
-
-    // In a real app, you would send an email here
-    // For demo purposes, we'll show an alert with the reset link
-    const resetLink = `${window.location.origin}/#/reset-password?token=${token}`;
-    console.log('Password reset link:', resetLink);
-    
-    // Show the reset link to the user since we don't have a real email system
-    alert(`Password Reset Link (since we don't have real email): ${resetLink}`);
-    
-    // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    return { success: true, resetLink };
   };
 
   const verifyResetToken = async (token) => {
@@ -431,48 +566,133 @@ export function AuthProvider({ children }) {
   };
 
   const resetPassword = async (token, newPassword) => {
-    const resetToken = state.passwordResetTokens.find(t => 
-      t.token === token && !t.used && new Date(t.expiresAt) > new Date()
-    );
-
-    if (!resetToken) {
-      return { success: false, error: 'Invalid or expired reset token' };
+    try {
+      console.log('Resetting password with token');
+      
+      const resetToken = state.passwordResetTokens.find(t => 
+        t.token === token && !t.used && new Date(t.expiresAt) > new Date()
+      );
+      
+      if (!resetToken) {
+        return { success: false, error: 'Invalid or expired reset token' };
+      }
+      
+      const passwordHash = await hashPassword(newPassword);
+      
+      const { error } = await supabaseClient
+        .from(USERS_TABLE)
+        .update({ 
+          password_hash: passwordHash,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', resetToken.userId);
+        
+      if (error) {
+        console.error('Error resetting password:', error);
+        return { success: false, error: error.message };
+      }
+      
+      dispatch({ type: 'USE_PASSWORD_RESET_TOKEN', payload: token });
+      console.log('Password reset successfully');
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      return { success: false, error: 'Failed to reset password' };
     }
-
-    const user = state.users.find(u => u.id === resetToken.userId);
-    if (!user) {
-      return { success: false, error: 'User not found' };
-    }
-
-    // Update user password
-    const updatedUser = {
-      ...user,
-      password: newPassword,
-      updatedAt: new Date().toISOString()
-    };
-
-    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-    dispatch({ type: 'USE_PASSWORD_RESET_TOKEN', payload: token });
-
-    return { success: true };
   };
 
-  const deleteUser = (userId) => {
-    // Prevent deletion of admin users
-    const user = state.users.find(u => u.id === userId);
-    if (user?.role === 'admin') {
-      return { success: false, error: 'Cannot delete admin users' };
+  const deleteUser = async (userId) => {
+    try {
+      console.log('Deleting user:', userId);
+      
+      const { data: userData, error: fetchError } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('role')
+        .eq('id', userId)
+        .single();
+        
+      if (fetchError) {
+        console.error('Error fetching user:', fetchError);
+        return { success: false, error: fetchError.message };
+      }
+      
+      if (userData.role === 'admin') {
+        return { success: false, error: 'Cannot delete admin users' };
+      }
+      
+      const { error } = await supabaseClient
+        .from(USERS_TABLE)
+        .delete()
+        .eq('id', userId);
+        
+      if (error) {
+        console.error('Error deleting user:', error);
+        return { success: false, error: error.message };
+      }
+      
+      console.log('User deleted successfully');
+      dispatch({ type: 'DELETE_USER', payload: userId });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      return { success: false, error: 'Failed to delete user' };
     }
-
-    dispatch({ type: 'DELETE_USER', payload: userId });
-    return { success: true };
   };
 
-  const toggleUserStatus = (userId) => {
-    dispatch({ type: 'TOGGLE_USER_STATUS', payload: userId });
+  const toggleUserStatus = async (userId) => {
+    try {
+      console.log('Toggling user status:', userId);
+      
+      const { data: userData, error: fetchError } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('is_active')
+        .eq('id', userId)
+        .single();
+        
+      if (fetchError) {
+        console.error('Error fetching user:', fetchError);
+        return { success: false, error: fetchError.message };
+      }
+      
+      const newStatus = !userData.is_active;
+      
+      const { error } = await supabaseClient
+        .from(USERS_TABLE)
+        .update({ 
+          is_active: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+        
+      if (error) {
+        console.error('Error updating user status:', error);
+        return { success: false, error: error.message };
+      }
+      
+      const { data: updatedData, error: refreshError } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (refreshError) {
+        console.error('Error refreshing user data:', refreshError);
+      } else {
+        const updatedUser = transformSupabaseUser(updatedData);
+        dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+      }
+      
+      console.log('User status updated successfully');
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      return { success: false, error: 'Failed to update user status' };
+    }
   };
 
-  // Role checking functions
   const isAdmin = () => {
     return state.user?.role === 'admin';
   };
@@ -485,12 +705,10 @@ export function AuthProvider({ children }) {
     if (!state.user) return false;
     if (state.user.role === 'admin') return true;
 
-    // Define permissions for financial professionals
     const fpPermissions = ['clients', 'analyses', 'reports', 'calculators'];
     return fpPermissions.includes(permission);
   };
 
-  // Admin-specific functions
   const getAdminSettings = async () => {
     return {
       success: true,
@@ -500,113 +718,186 @@ export function AuthProvider({ children }) {
     };
   };
 
-  const updateAdminSettings = async (settings) => {
-    // In a real app, this would save to a database
+  const updateAdminSettings = async () => {
     return { success: true };
   };
 
   const getPendingUsers = async () => {
-    return {
-      success: true,
-      users: [] // No pending users in this simplified system
-    };
-  };
-
-  const approveUser = async (userId) => {
-    return { success: true };
-  };
-
-  const rejectUser = async (userId) => {
-    return { success: true };
-  };
-
-  // Email-based login (simplified)
-  const sendEmailCode = async (email) => {
-    const user = state.users.find(u => u.email === email && u.isActive);
-    if (!user) {
-      return { success: false, error: 'User not found' };
+    try {
+      return { success: true, users: [] };
+    } catch (error) {
+      console.error('Error getting pending users:', error);
+      return { success: false, error: 'Failed to get pending users' };
     }
+  };
 
-    // Generate a simple code for demo
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Store the code temporarily (in production, this would be in a database)
-    saveToStorage(`emailCode_${email}`, {
-      code,
-      expires: Date.now() + 10 * 60 * 1000 // 10 minutes
-    });
-
-    // Show code in alert for demo
-    alert(`Demo: Your verification code is ${code}`);
-
+  const approveUser = async () => {
     return { success: true };
+  };
+
+  const rejectUser = async () => {
+    return { success: true };
+  };
+
+  const sendEmailCode = async (email) => {
+    try {
+      console.log('Sending email code to:', email);
+      
+      const { data: users, error } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('id, is_active')
+        .eq('email', email);
+        
+      if (error) {
+        console.error('Error checking user:', error);
+        return { success: false, error: error.message };
+      }
+      
+      if (!users || users.length === 0 || !users[0].is_active) {
+        return { success: false, error: 'No active user found with this email address' };
+      }
+      
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      saveToStorage(`emailCode_${email}`, {
+        code,
+        expires: Date.now() + 10 * 60 * 1000
+      });
+      
+      alert(`Demo: Your verification code is ${code}`);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error sending email code:', error);
+      return { success: false, error: 'Failed to send verification code' };
+    }
   };
 
   const verifyEmailCode = async (email, code) => {
-    const storedData = getFromStorage(`emailCode_${email}`);
-    
-    if (!storedData || storedData.expires < Date.now()) {
-      return { success: false, error: 'Code expired or not found' };
-    }
-
-    if (storedData.code !== code) {
-      return { success: false, error: 'Invalid code' };
-    }
-
-    // Find and login user
-    const user = state.users.find(u => u.email === email && u.isActive);
-    if (user) {
-      const { password: _, ...userWithoutPassword } = user;
-      dispatch({ type: 'LOGIN', payload: userWithoutPassword });
-      localStorage.removeItem(`emailCode_${email}`);
-      return { success: true, user: userWithoutPassword };
-    }
-
-    return { success: false, error: 'User not found' };
-  };
-
-  // Sign up function
-  const signUp = async (userData) => {
-    // Check if email already exists
-    const existingUser = state.users.find(u => u.email === userData.email);
-    if (existingUser) {
-      return { success: false, error: 'Email already registered' };
-    }
-
-    // Set a default password that won't be lost
-    const defaultPassword = 'temp123';
-    
-    const newUser = {
-      id: `user-${Date.now()}`,
-      email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      role: userData.role || 'financial_professional',
-      company: userData.company || '',
-      phone: userData.phone || '',
-      bio: userData.bio || '',
-      password: defaultPassword, // Temporary password
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      hasCompletedOnboarding: true,
-      profilePhoto: null
-    };
-
-    dispatch({ type: 'ADD_USER', payload: newUser });
-    return { success: true, user: newUser };
-  };
-
-  const completeOnboarding = () => {
-    if (state.user) {
-      const existingUser = state.users.find(u => u.id === state.user.id);
-      if (!existingUser) return;
+    try {
+      console.log('Verifying email code for:', email);
       
-      const updatedUser = {
-        ...existingUser,
-        hasCompletedOnboarding: true
+      const storedData = getFromStorage(`emailCode_${email}`);
+      
+      if (!storedData || storedData.expires < Date.now()) {
+        return { success: false, error: 'Code expired or not found' };
+      }
+      
+      if (storedData.code !== code) {
+        return { success: false, error: 'Invalid code' };
+      }
+      
+      const { data: users, error } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('*')
+        .eq('email', email)
+        .eq('is_active', true);
+        
+      if (error) {
+        console.error('Error fetching user:', error);
+        return { success: false, error: error.message };
+      }
+      
+      if (!users || users.length === 0) {
+        return { success: false, error: 'User not found' };
+      }
+      
+      const appUser = transformSupabaseUser(users[0]);
+      dispatch({ type: 'LOGIN', payload: appUser });
+      
+      localStorage.removeItem(`emailCode_${email}`);
+      console.log('Email code verified and user logged in');
+      
+      return { success: true, user: appUser };
+    } catch (error) {
+      console.error('Error verifying email code:', error);
+      return { success: false, error: 'Failed to verify code' };
+    }
+  };
+
+  const signUp = async (userData) => {
+    try {
+      console.log('Signing up new user:', userData.email);
+      
+      const { data: existingUsers, error: checkError } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('id')
+        .eq('email', userData.email);
+        
+      if (checkError) {
+        console.error('Error checking email:', checkError);
+        return { success: false, error: checkError.message };
+      }
+      
+      if (existingUsers && existingUsers.length > 0) {
+        return { success: false, error: 'Email already registered' };
+      }
+      
+      const defaultPassword = 'temp123';
+      const passwordHash = await hashPassword(defaultPassword);
+      
+      const dbUser = {
+        email: userData.email,
+        first_name: userData.firstName,
+        last_name: userData.lastName,
+        password_hash: passwordHash,
+        role: userData.role || 'financial_professional',
+        is_active: true,
+        has_completed_onboarding: false,
+        company: userData.company || '',
+        phone: userData.phone || '',
+        bio: userData.bio || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
       
+      const { data: newUser, error } = await supabaseClient
+        .from(USERS_TABLE)
+        .insert(dbUser)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Error creating user:', error);
+        return { success: false, error: error.message };
+      }
+      
+      console.log('User signed up successfully:', newUser);
+      const appUser = transformSupabaseUser(newUser);
+      dispatch({ type: 'ADD_USER', payload: appUser });
+      
+      return { success: true, user: appUser };
+    } catch (error) {
+      console.error('Error signing up:', error);
+      return { success: false, error: 'Failed to create account' };
+    }
+  };
+
+  const completeOnboarding = async () => {
+    if (!state.user) return;
+    
+    try {
+      console.log('Completing onboarding for user:', state.user.id);
+      
+      const { error } = await supabaseClient
+        .from(USERS_TABLE)
+        .update({ 
+          has_completed_onboarding: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', state.user.id);
+        
+      if (error) {
+        console.error('Error completing onboarding:', error);
+        return;
+      }
+      
+      const updatedUser = { ...state.user, hasCompletedOnboarding: true };
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+      
+      console.log('Onboarding completed successfully');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
     }
   };
 

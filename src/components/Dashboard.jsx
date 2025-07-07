@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
@@ -15,21 +15,41 @@ function Dashboard() {
   const { user, isAdmin } = useAuth();
   const [showClientModal, setShowClientModal] = useState(false);
   const [showGetStarted, setShowGetStarted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleAddClient = (clientData) => {
+  useEffect(() => {
+    // Data should load automatically from ClientProvider
+    const timer = setTimeout(() => setIsLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleAddClient = async (clientData) => {
     const newClient = {
       id: Date.now().toString(),
       ...clientData,
       userId: user.id, // Associate client with current user
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
-    dispatch({ type: 'ADD_CLIENT', payload: newClient });
-    setShowClientModal(false);
+
+    try {
+      await dispatch({ type: 'ADD_CLIENT', payload: newClient });
+      setShowClientModal(false);
+      console.log('Client added successfully:', newClient);
+    } catch (error) {
+      console.error('Error adding client:', error);
+      alert('Error adding client. Please try again.');
+    }
   };
 
-  const handleDeleteClient = (clientId) => {
+  const handleDeleteClient = async (clientId) => {
     if (window.confirm('Are you sure you want to delete this client?')) {
-      dispatch({ type: 'DELETE_CLIENT', payload: clientId });
+      try {
+        await dispatch({ type: 'DELETE_CLIENT', payload: clientId });
+        console.log('Client deleted successfully');
+      } catch (error) {
+        console.error('Error deleting client:', error);
+        alert('Error deleting client. Please try again.');
+      }
     }
   };
 
@@ -37,8 +57,19 @@ function Dashboard() {
   const userStats = {
     totalClients: state.clients.length,
     totalAnalyses: state.analyses.length,
-    recentClients: state.clients.slice(-5).reverse(),
+    recentClients: state.clients.slice(-5).reverse()
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -68,7 +99,7 @@ function Dashboard() {
                   <SafeIcon icon={FiPlayCircle} />
                   <span>Get Started</span>
                 </button>
-
+                
                 {isAdmin() && (
                   <Link
                     to="/admin"
@@ -284,9 +315,9 @@ function Dashboard() {
       </div>
 
       {/* GetStarted Modal */}
-      <GetStartedModal 
-        isOpen={showGetStarted} 
-        onClose={() => setShowGetStarted(false)} 
+      <GetStartedModal
+        isOpen={showGetStarted}
+        onClose={() => setShowGetStarted(false)}
       />
     </>
   );
