@@ -149,7 +149,10 @@ function Dashboard() {
                     {isAdmin() ? 'Administrator' : 'Financial Professional'}
                   </p>
                 </div>
-                <SafeIcon icon={isAdmin() ? FiIcons.FiShield : FiIcons.FiBriefcase} className="text-3xl text-purple-500" />
+                <SafeIcon
+                  icon={isAdmin() ? FiIcons.FiShield : FiIcons.FiBriefcase}
+                  className="text-3xl text-purple-500"
+                />
               </div>
             </div>
           </motion.div>
@@ -279,15 +282,13 @@ function Dashboard() {
                           to={`/analysis/${client.id}`}
                           className="bg-green-100 text-green-600 px-4 py-2 rounded-lg hover:bg-green-200 transition-colors"
                         >
-                          <SafeIcon icon={FiTrendingUp} className="inline mr-1" />
-                          Analysis
+                          <SafeIcon icon={FiTrendingUp} className="inline mr-1" /> Analysis
                         </Link>
                         <Link
                           to={`/report/${client.id}`}
                           className="bg-purple-100 text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-200 transition-colors"
                         >
-                          <SafeIcon icon={FiFileText} className="inline mr-1" />
-                          Report
+                          <SafeIcon icon={FiFileText} className="inline mr-1" /> Report
                         </Link>
                         <button
                           onClick={() => handleDeleteClient(client.id)}
@@ -316,10 +317,7 @@ function Dashboard() {
       </div>
 
       {/* GetStarted Modal */}
-      <GetStartedModal
-        isOpen={showGetStarted}
-        onClose={() => setShowGetStarted(false)}
-      />
+      <GetStartedModal isOpen={showGetStarted} onClose={() => setShowGetStarted(false)} />
     </>
   );
 }

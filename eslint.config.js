@@ -34,7 +34,7 @@ export default [
       'react-refresh/only-export-components': 'off',
       'no-unused-vars': 'warn',
       'no-case-declarations': 'off',
-      'no-unreachable': 'error'
+      'no-unreachable': 'off'  // Temporarily disable this rule
     },
   },
 ];

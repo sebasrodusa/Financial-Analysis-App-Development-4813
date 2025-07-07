@@ -31,19 +31,26 @@ function SupabaseTest() {
           hint: error.hint,
           code: error.code
         });
-        setLastResult({ success: false, error: error.message });
+        setLastResult({
+          success: false,
+          error: error.message
+        });
       } else {
         console.log('✅ Supabase Test Successful!');
         console.log('📊 Users found:', users?.length || 0);
         console.log('👤 Users data:', users);
-        setLastResult({ success: true, count: users?.length || 0, users });
+        setLastResult({
+          success: true,
+          count: users?.length || 0,
+          users
+        });
       }
       
       // Test 3: Check table structure
       console.log('🔍 Testing table structure...');
       const { data: tableInfo, error: tableError } = await supabaseClient
         .from('users_pt2024')
-        .select('id, email, role')
+        .select('id,email,role')
         .limit(1);
         
       if (tableError) {
@@ -51,10 +58,12 @@ function SupabaseTest() {
       } else {
         console.log('📋 Table structure test passed:', tableInfo);
       }
-      
     } catch (error) {
       console.error('💥 Unexpected error:', error);
-      setLastResult({ success: false, error: error.message });
+      setLastResult({
+        success: false,
+        error: error.message
+      });
     } finally {
       setIsLoading(false);
     }
@@ -78,8 +87,7 @@ function SupabaseTest() {
       >
         {isLoading ? (
           <>
-            <span className="animate-spin inline-block mr-2">⚪</span>
-            Testing...
+            <span className="animate-spin inline-block mr-2">⚪</span> Testing...
           </>
         ) : (
           'Run Test'
@@ -89,7 +97,7 @@ function SupabaseTest() {
       {lastResult && (
         <div className={`mt-3 p-2 rounded text-sm ${
           lastResult.success 
-            ? 'bg-green-100 text-green-800 border border-green-300'
+            ? 'bg-green-100 text-green-800 border border-green-300' 
             : 'bg-red-100 text-red-800 border border-red-300'
         }`}>
           {lastResult.success ? (
