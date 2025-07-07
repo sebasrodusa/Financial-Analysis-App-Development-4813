@@ -18,8 +18,8 @@ The application requires these tables in Supabase:
 - **users_pt2024**: User authentication and profile data
 - **clients_pt2024**: Client information and details
 - **analyses_pt2024**: Financial analysis data
-- **admin_settings_pt2024**: Global admin settings
-- **pending_users_pt2024**: Registrations awaiting approval
+- **admin_settings_pt2024**: Admin settings
+- **pending_users_pt2024**: Pending user registrations
 
 ### 3. Environment Setup
 
