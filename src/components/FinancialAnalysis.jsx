@@ -9,7 +9,7 @@ const { FiArrowLeft, FiSave, FiDollarSign, FiUsers, FiHome, FiCreditCard, FiTarg
 
 function FinancialAnalysis() {
   const { id } = useParams();
-  const { state, dispatch } = useClient();
+  const { state, addAnalysis, updateAnalysis } = useClient();
   const [client, setClient] = useState(null);
   const [analysis, setAnalysis] = useState({
     clientId: id,
@@ -166,17 +166,16 @@ function FinancialAnalysis() {
     }));
   };
 
-  const saveAnalysis = () => {
+  const saveAnalysis = async () => {
     const analysisData = {
       ...analysis,
-      id: analysis.id || Date.now().toString(),
       updatedAt: new Date().toISOString()
     };
 
     if (analysis.id) {
-      dispatch({ type: 'UPDATE_ANALYSIS', payload: analysisData });
+      await updateAnalysis(analysisData);
     } else {
-      dispatch({ type: 'ADD_ANALYSIS', payload: analysisData });
+      await addAnalysis({ ...analysisData, clientId: id });
     }
 
     alert('Analysis saved successfully!');

@@ -10,7 +10,7 @@ const { FiArrowLeft, FiEdit2, FiUser, FiMail, FiPhone, FiMapPin, FiCalendar, FiB
 
 function ClientProfile() {
   const { id } = useParams();
-  const { state, dispatch } = useClient();
+  const { state, updateClient } = useClient();
   const [showEditModal, setShowEditModal] = useState(false);
   const [client, setClient] = useState(null);
 
@@ -19,8 +19,8 @@ function ClientProfile() {
     setClient(foundClient);
   }, [id, state.clients]);
 
-  const handleUpdateClient = (updatedClient) => {
-    dispatch({ type: 'UPDATE_CLIENT', payload: { ...updatedClient, id } });
+  const handleUpdateClient = async (updatedClient) => {
+    await updateClient({ ...updatedClient, id });
     setShowEditModal(false);
   };
 
