@@ -3,8 +3,10 @@ import supabaseClient from '../lib/supabase';
 
 const AuthContext = createContext();
 
-// Define table name
+// Define table names
 const USERS_TABLE = 'users_pt2024';
+const ADMIN_SETTINGS_TABLE = 'admin_settings_pt2024';
+const PENDING_USERS_TABLE = 'pending_users_pt2024';
 
 const initialState = {
   user: null,
@@ -709,33 +711,127 @@ export function AuthProvider({ children }) {
   };
 
   const getAdminSettings = async () => {
-    return {
-      success: true,
-      settings: {
-        autoApproveRegistrations: false
+    try {
+      const { data, error } = await supabaseClient
+        .from(ADMIN_SETTINGS_TABLE)
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (!data) {
+        const { data: created } = await supabaseClient
+          .from(ADMIN_SETTINGS_TABLE)
+          .insert({ auto_approve_registrations: false })
+          .select()
+          .single();
+        return {
+          success: true,
+          settings: {
+            autoApproveRegistrations: created.auto_approve_registrations
+          }
+        };
       }
-    };
+
+      return {
+        success: true,
+        settings: {
+          autoApproveRegistrations: data.auto_approve_registrations
+        }
+      };
+    } catch (error) {
+      console.error('Error getting admin settings:', error);
+      return { success: false, error: 'Failed to load settings' };
+    }
   };
 
-  const updateAdminSettings = async () => {
-    return { success: true };
+  const updateAdminSettings = async (settings) => {
+    try {
+      const { error } = await supabaseClient
+        .from(ADMIN_SETTINGS_TABLE)
+        .update({
+          auto_approve_registrations: settings.autoApproveRegistrations,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', 1);
+
+      if (error) {
+        const { error: insertError } = await supabaseClient
+          .from(ADMIN_SETTINGS_TABLE)
+          .insert({ auto_approve_registrations: settings.autoApproveRegistrations });
+        if (insertError) throw insertError;
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating admin settings:', error);
+      return { success: false, error: 'Failed to update settings' };
+    }
   };
 
   const getPendingUsers = async () => {
     try {
-      return { success: true, users: [] };
+      const { data, error } = await supabaseClient
+        .from(PENDING_USERS_TABLE)
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at');
+      if (error) throw error;
+      return { success: true, users: data || [] };
     } catch (error) {
       console.error('Error getting pending users:', error);
       return { success: false, error: 'Failed to get pending users' };
     }
   };
 
-  const approveUser = async () => {
-    return { success: true };
+  const approveUser = async (userId) => {
+    try {
+      const { data: pending, error } = await supabaseClient
+        .from(PENDING_USERS_TABLE)
+        .select('*')
+        .eq('id', userId)
+        .single();
+      if (error || !pending) throw error || new Error('Pending user not found');
+
+      const passwordHash = await hashPassword('temp123');
+      const { data: newUser, error: insertError } = await supabaseClient
+        .from(USERS_TABLE)
+        .insert({
+          email: pending.email,
+          first_name: pending.first_name,
+          last_name: pending.last_name,
+          role: pending.role,
+          company: pending.company,
+          phone: pending.phone,
+          bio: pending.bio,
+          password_hash: passwordHash,
+          is_active: true,
+          has_completed_onboarding: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      if (insertError) throw insertError;
+
+      await supabaseClient.from(PENDING_USERS_TABLE).delete().eq('id', userId);
+      dispatch({ type: 'ADD_USER', payload: transformSupabaseUser(newUser) });
+      return { success: true };
+    } catch (error) {
+      console.error('Error approving user:', error);
+      return { success: false, error: 'Failed to approve user' };
+    }
   };
 
-  const rejectUser = async () => {
-    return { success: true };
+  const rejectUser = async (userId) => {
+    try {
+      await supabaseClient.from(PENDING_USERS_TABLE).delete().eq('id', userId);
+      return { success: true };
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      return { success: false, error: 'Failed to reject user' };
+    }
   };
 
   const sendEmailCode = async (email) => {

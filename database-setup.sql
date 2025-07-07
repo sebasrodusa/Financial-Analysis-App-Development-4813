@@ -72,6 +72,27 @@ CREATE TABLE analyses_pt2024 (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Admin settings table
+CREATE TABLE IF NOT EXISTS admin_settings_pt2024 (
+  id SERIAL PRIMARY KEY,
+  auto_approve_registrations BOOLEAN DEFAULT false,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Pending user registrations table
+CREATE TABLE IF NOT EXISTS pending_users_pt2024 (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  email VARCHAR(255) NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
+  role VARCHAR(50) DEFAULT 'financial_professional',
+  company VARCHAR(255),
+  phone VARCHAR(50),
+  bio TEXT,
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable Row Level Security
 ALTER TABLE users_pt2024 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients_pt2024 ENABLE ROW LEVEL SECURITY;
