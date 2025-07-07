@@ -39,7 +39,8 @@ function authReducer(state, action) {
     case 'SET_USERS':
       return {
         ...state,
-        users: action.payload
+        users: action.payload,
+        isLoading: false
       };
     case 'ADD_USER':
       return {
@@ -898,6 +899,8 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const needsOnboarding = state.user?.hasCompletedOnboarding === false;
+
   return (
     <AuthContext.Provider value={{
       ...state,
@@ -923,7 +926,8 @@ export function AuthProvider({ children }) {
       sendEmailCode,
       verifyEmailCode,
       signUp,
-      completeOnboarding
+      completeOnboarding,
+      needsOnboarding
     }}>
       {children}
     </AuthContext.Provider>

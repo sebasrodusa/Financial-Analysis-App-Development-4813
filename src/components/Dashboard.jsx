@@ -7,6 +7,7 @@ import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import ClientModal from './ClientModal';
 import GetStartedModal from './GetStartedModal';
+import SupabaseTest from './SupabaseTest';
 
 const { FiPlus, FiUser, FiTrendingUp, FiFileText, FiCalculator, FiCreditCard, FiPlayCircle } = FiIcons;
 
@@ -99,7 +100,7 @@ function Dashboard() {
                   <SafeIcon icon={FiPlayCircle} />
                   <span>Get Started</span>
                 </button>
-                
+
                 {isAdmin() && (
                   <Link
                     to="/admin"
@@ -148,10 +149,7 @@ function Dashboard() {
                     {isAdmin() ? 'Administrator' : 'Financial Professional'}
                   </p>
                 </div>
-                <SafeIcon 
-                  icon={isAdmin() ? FiIcons.FiShield : FiIcons.FiBriefcase} 
-                  className="text-3xl text-purple-500" 
-                />
+                <SafeIcon icon={isAdmin() ? FiIcons.FiShield : FiIcons.FiBriefcase} className="text-3xl text-purple-500" />
               </div>
             </div>
           </motion.div>
@@ -312,6 +310,9 @@ function Dashboard() {
             onSave={handleAddClient}
           />
         )}
+
+        {/* Supabase Test Component - Prominently displayed on Dashboard */}
+        <SupabaseTest />
       </div>
 
       {/* GetStarted Modal */}

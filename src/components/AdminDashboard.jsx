@@ -5,6 +5,7 @@ import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import UserModal from './UserModal';
+import SupabaseTest from './SupabaseTest';
 
 const { FiUsers, FiUserPlus, FiEdit2, FiTrash2, FiEye, FiShield, FiBriefcase, FiBarChart3, FiSettings, FiSearch } = FiIcons;
 
@@ -47,13 +48,10 @@ function AdminDashboard() {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = 
-      user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
-    
     return matchesSearch && matchesRole;
   });
 
@@ -233,9 +231,7 @@ function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.role === 'admin' 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-blue-100 text-blue-800'
+                          user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
                         }`}>
                           <SafeIcon icon={user.role === 'admin' ? FiShield : FiBriefcase} className="mr-1 text-xs" />
                           {user.role === 'admin' ? 'Admin' : 'Financial Professional'}
@@ -353,6 +349,9 @@ function AdminDashboard() {
             onSave={editingUser ? handleUpdateUser : handleAddUser}
           />
         )}
+
+        {/* Supabase Test Component - Only for authenticated admin users */}
+        <SupabaseTest />
       </div>
     </div>
   );

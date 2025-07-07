@@ -16,7 +16,6 @@ import LifeInsuranceCalculator from './components/LifeInsuranceCalculator';
 import DebtStackingCalculator from './components/DebtStackingCalculator';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
-import SupabaseTest from './components/SupabaseTest';
 import './App.css';
 
 // Lazy load optional components to prevent build issues
@@ -73,7 +72,6 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       {isAuthenticated && <Navbar />}
-      
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -215,15 +213,10 @@ function AppContent() {
           {/* Default redirect */}
           <Route
             path="/"
-            element={
-              <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-            }
+            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
           />
         </Routes>
       </motion.div>
-      
-      {/* Supabase Test Component - Visible on all pages */}
-      <SupabaseTest />
     </div>
   );
 }
@@ -232,7 +225,7 @@ function AppContent() {
 const getQuestConfig = () => {
   try {
     if (typeof window === 'undefined') return null;
-    
+
     const config = {
       apiKey: 'k-01e20326-644b-41ae-a703-65bfe60fc6c1',
       entityId: 'e-7a4dcfcd-535e-4d47-9fd2-11d2085767dd',
