@@ -11,25 +11,24 @@ import GetStartedModal from './GetStartedModal';
 const { FiPlus, FiUser, FiTrendingUp, FiFileText, FiCalculator, FiCreditCard, FiPlayCircle } = FiIcons;
 
 function Dashboard() {
-  const { state, dispatch } = useClient();
+  const { state, addClient, deleteClient } = useClient();
   const { user, isAdmin } = useAuth();
   const [showClientModal, setShowClientModal] = useState(false);
   const [showGetStarted, setShowGetStarted] = useState(false);
 
-  const handleAddClient = (clientData) => {
+  const handleAddClient = async (clientData) => {
     const newClient = {
-      id: Date.now().toString(),
       ...clientData,
-      userId: user.id, // Associate client with current user
+      userId: user.id,
       createdAt: new Date().toISOString(),
     };
-    dispatch({ type: 'ADD_CLIENT', payload: newClient });
+    await addClient(newClient);
     setShowClientModal(false);
   };
 
-  const handleDeleteClient = (clientId) => {
+  const handleDeleteClient = async (clientId) => {
     if (window.confirm('Are you sure you want to delete this client?')) {
-      dispatch({ type: 'DELETE_CLIENT', payload: clientId });
+      await deleteClient(clientId);
     }
   };
 
