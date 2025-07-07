@@ -350,10 +350,11 @@ function AdminDashboard() {
           />
         )}
 
-        {/* Supabase Test Component - Only for authenticated admin users */}
-        <SupabaseTest />
-      </div>
-    </div>
+        {/* Always show the Supabase Test Panel for now */}
+<div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
+  <SupabaseTest />
+</div>
+
   );
 }
 
