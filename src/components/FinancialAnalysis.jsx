@@ -169,7 +169,7 @@ function FinancialAnalysis() {
   const saveAnalysis = () => {
     const analysisData = {
       ...analysis,
-      id: analysis.id || Date.now().toString(),
+      id: analysis.id,
       updatedAt: new Date().toISOString()
     };
 

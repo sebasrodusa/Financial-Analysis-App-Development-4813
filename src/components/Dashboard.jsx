@@ -26,7 +26,6 @@ function Dashboard() {
 
   const handleAddClient = async (clientData) => {
     const newClient = {
-      id: Date.now().toString(),
       ...clientData,
       userId: user.id, // Associate client with current user
       createdAt: new Date().toISOString()

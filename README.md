@@ -16,10 +16,23 @@
 The application requires these tables in Supabase:
 
 - **users_pt2024**: User authentication and profile data
-- **clients_pt2024**: Client information and details  
+- **clients_pt2024**: Client information and details
 - **analyses_pt2024**: Financial analysis data
+- **admin_settings_pt2024**: Global admin settings
+- **pending_users_pt2024**: Registrations awaiting approval
 
-### 3. Features
+### 3. Environment Setup
+
+Create a `.env` file in the project root with your Supabase credentials:
+
+```env
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
+```
+
+These variables are loaded by `src/lib/supabase.js`.
+
+### 4. Features
 
 - ✅ User authentication with Supabase
 - ✅ Client management with full CRUD operations
@@ -31,7 +44,7 @@ The application requires these tables in Supabase:
 - ✅ Life insurance calculator
 - ✅ Debt stacking calculator
 
-### 4. Demo Credentials
+### 5. Demo Credentials
 
 **Admin Account:**
 - Email: sebasrodus+admin@gmail.com  
@@ -41,7 +54,7 @@ The application requires these tables in Supabase:
 - Email: advisor@prospertrack.com
 - Password: advisor123
 
-### 5. Data Persistence
+### 6. Data Persistence
 
 The application now properly saves data to Supabase:
 
@@ -51,14 +64,14 @@ The application now properly saves data to Supabase:
 
 Data is also backed up to localStorage as a fallback mechanism.
 
-### 6. Development
+### 7. Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-### 7. Build
+### 8. Build
 
 ```bash
 npm run build
