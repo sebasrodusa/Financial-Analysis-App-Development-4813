@@ -286,6 +286,7 @@ export function AuthProvider({ children }) {
       if (email === 'sebasrodus+admin@gmail.com' && password === 'admin1234') {
         const appUser = transformSupabaseUser(user);
         dispatch({ type: 'LOGIN', payload: appUser });
+        dispatch({ type: 'SET_LOADING', payload: false });
         console.log('Admin login successful');
         return { success: true, user: appUser };
       }
@@ -293,6 +294,7 @@ export function AuthProvider({ children }) {
       if (email === 'advisor@prospertrack.com' && password === 'advisor123') {
         const appUser = transformSupabaseUser(user);
         dispatch({ type: 'LOGIN', payload: appUser });
+        dispatch({ type: 'SET_LOADING', payload: false });
         console.log('Advisor login successful');
         return { success: true, user: appUser };
       }
@@ -304,6 +306,7 @@ export function AuthProvider({ children }) {
       if (passwordMatches) {
         const appUser = transformSupabaseUser(user);
         dispatch({ type: 'LOGIN', payload: appUser });
+        dispatch({ type: 'SET_LOADING', payload: false });
         console.log('Login successful for:', appUser.email);
         return { success: true, user: appUser };
       } else {
