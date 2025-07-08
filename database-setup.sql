@@ -25,12 +25,22 @@ CREATE TABLE IF NOT EXISTS users_pt2024 (
 -- Enable Row Level Security on users table
 ALTER TABLE users_pt2024 ENABLE ROW LEVEL SECURITY;
 
+-- Table to track admin users without causing RLS recursion
+CREATE TABLE IF NOT EXISTS admin_users (
+  user_id UUID PRIMARY KEY REFERENCES users_pt2024(id)
+);
+
+-- RLS is disabled on this helper table
+ALTER TABLE admin_users DISABLE ROW LEVEL SECURITY;
+
 -- Helper function to check if a user is an admin
 CREATE OR REPLACE FUNCTION public.is_admin(p_user_id uuid)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
 AS $$
-  SELECT role = 'admin' FROM users_pt2024 WHERE id = p_user_id;
+  SELECT EXISTS (
+    SELECT 1 FROM admin_users au WHERE au.user_id = p_user_id
+  );
 $$;
 GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO anon;
 
@@ -64,6 +74,11 @@ INSERT INTO users_pt2024 (
   true
   )
   ON CONFLICT DO NOTHING;
+
+-- Register admin user in admin_users table
+INSERT INTO admin_users (user_id)
+SELECT id FROM users_pt2024 WHERE email = 'sebasrodus+admin@gmail.com'
+ON CONFLICT DO NOTHING;
 
 -- Initial advisor user (password: advisor123)
 INSERT INTO users_pt2024 (
