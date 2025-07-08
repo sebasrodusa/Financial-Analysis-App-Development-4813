@@ -31,6 +31,8 @@ cd prospertrack
 ```bash
 npm install
 ```
+   Run this command before executing `npm run lint` so that development
+   dependencies like `@eslint/js` are available.
 
 3. Create a `.env` file in the root directory based on `.env.example` and add your credentials:
 ```
@@ -76,6 +78,17 @@ npm run build
 ```
 
 The build output will be in the `dist` folder, which can be deployed to any static hosting service.
+
+## Linting
+
+Before running the linter, make sure all dependencies are installed:
+```bash
+npm install
+```
+This installs dev dependencies such as `@eslint/js`. Then execute:
+```bash
+npm run lint
+```
 
 ## Demo Credentials
 
