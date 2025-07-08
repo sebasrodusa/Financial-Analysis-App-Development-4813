@@ -52,7 +52,7 @@ VITE_QUEST_TOKEN=your-quest-token
 
 1. Create a new Supabase project at [supabase.com](https://supabase.com)
 
-2. Run the database setup script (`database-setup.sql`) in the Supabase SQL editor to create the required tables. Make sure you execute the updated script so the `anon` role receives the proper schema permissions:
+2. Run the database setup script (`database-setup.sql`) in the Supabase SQL editor to create the required tables. Make sure you execute the updated script so the `anon` role receives the proper schema permissions. The script now includes a helper table `admin_users` used for admin checks to avoid row level security recursion:
    - Go to your Supabase project dashboard
    - Navigate to "SQL Editor"
    - Create a "New query"
