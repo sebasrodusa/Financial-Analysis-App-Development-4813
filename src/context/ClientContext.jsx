@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext';
 import supabaseClient from '../lib/supabase';
 
 // Table names
-const CLIENTS_TABLE = 'clients';
+const CLIENTS_TABLE = 'client_pt2024';
 const ANALYSES_TABLE = 'analyses_pt2024';
 
 const ClientContext = createContext();
@@ -13,14 +13,30 @@ const initialState = {
   currentClient: null,
   analyses: [],
   currentAnalysis: null,
+  isLoading: false,
+  error: null,
 };
 
 function clientReducer(state, action) {
   switch (action.type) {
+    case 'SET_LOADING':
+      return {
+        ...state,
+        isLoading: action.payload,
+        error: null,
+      };
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+        isLoading: false,
+      };
     case 'ADD_CLIENT':
       return {
         ...state,
         clients: [...state.clients, action.payload],
+        isLoading: false,
+        error: null,
       };
     case 'UPDATE_CLIENT':
       return {
@@ -28,11 +44,15 @@ function clientReducer(state, action) {
         clients: state.clients.map(client => 
           client.id === action.payload.id ? action.payload : client
         ),
+        isLoading: false,
+        error: null,
       };
     case 'DELETE_CLIENT':
       return {
         ...state,
         clients: state.clients.filter(client => client.id !== action.payload),
+        isLoading: false,
+        error: null,
       };
     case 'SET_CURRENT_CLIENT':
       return {
@@ -43,6 +63,8 @@ function clientReducer(state, action) {
       return {
         ...state,
         analyses: [...state.analyses, action.payload],
+        isLoading: false,
+        error: null,
       };
     case 'UPDATE_ANALYSIS':
       return {
@@ -50,6 +72,8 @@ function clientReducer(state, action) {
         analyses: state.analyses.map(analysis => 
           analysis.id === action.payload.id ? action.payload : analysis
         ),
+        isLoading: false,
+        error: null,
       };
     case 'SET_CURRENT_ANALYSIS':
       return {
@@ -60,72 +84,12 @@ function clientReducer(state, action) {
       return {
         ...state,
         ...action.payload,
+        isLoading: false,
+        error: null,
       };
     default:
       return state;
   }
-}
-
-// Convert app client to DB format (snake_case)
-function toDbClient(appClient) {
-  if (!appClient) return null;
-  return {
-    id: appClient.id,
-    user_id: appClient.userId,
-    first_name: appClient.firstName,
-    last_name: appClient.lastName,
-    email: appClient.email,
-    phone: appClient.phone,
-    address: appClient.address,
-    city: appClient.city,
-    state: appClient.state,
-    zip_code: appClient.zipCode,
-    date_of_birth: appClient.dateOfBirth,
-    occupation: appClient.occupation,
-    employer: appClient.employer,
-    marital_status: appClient.maritalStatus,
-    spouse_first_name: appClient.spouseFirstName,
-    spouse_last_name: appClient.spouseLastName,
-    spouse_date_of_birth: appClient.spouseDateOfBirth,
-    spouse_occupation: appClient.spouseOccupation,
-    spouse_employer: appClient.spouseEmployer,
-    spouse_phone: appClient.spousePhone,
-    spouse_email: appClient.spouseEmail,
-    children: appClient.children,
-    created_at: appClient.createdAt,
-    updated_at: appClient.updatedAt
-  };
-}
-
-// Convert DB client (snake_case) to app format (camelCase)
-function fromDbClient(dbClient) {
-  if (!dbClient) return null;
-  return {
-    id: dbClient.id,
-    userId: dbClient.user_id,
-    firstName: dbClient.first_name,
-    lastName: dbClient.last_name,
-    email: dbClient.email,
-    phone: dbClient.phone,
-    address: dbClient.address,
-    city: dbClient.city,
-    state: dbClient.state,
-    zipCode: dbClient.zip_code,
-    dateOfBirth: dbClient.date_of_birth,
-    occupation: dbClient.occupation,
-    employer: dbClient.employer,
-    maritalStatus: dbClient.marital_status,
-    spouseFirstName: dbClient.spouse_first_name,
-    spouseLastName: dbClient.spouse_last_name,
-    spouseDateOfBirth: dbClient.spouse_date_of_birth,
-    spouseOccupation: dbClient.spouse_occupation,
-    spouseEmployer: dbClient.spouse_employer,
-    spousePhone: dbClient.spouse_phone,
-    spouseEmail: dbClient.spouse_email,
-    children: dbClient.children,
-    createdAt: dbClient.created_at,
-    updatedAt: dbClient.updated_at
-  };
 }
 
 // Safe localStorage operations
@@ -167,32 +131,65 @@ export function ClientProvider({ children }) {
     }
   }, []);
 
-  // Fetch data from Supabase on mount
+  // Fetch data from Supabase on mount with error handling
   React.useEffect(() => {
     const fetchData = async () => {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      
+      // First, check if Supabase client is available
+      if (!supabaseClient) {
+        console.warn('Supabase client not available. Using localStorage data only.');
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return;
+      }
+      
       try {
-        const { data: clients, error: clientsError } = await supabaseClient
-          .from(CLIENTS_TABLE)
-          .select('*');
-
-        const { data: analyses, error: analysesError } = await supabaseClient
-          .from(ANALYSES_TABLE)
-          .select('*');
-
-        if (clientsError || analysesError) {
-          console.error('Error loading data:', clientsError || analysesError);
-          return;
-        }
-
+        // Wrap in try-catch to handle any API errors
+        const fetchClients = async () => {
+          try {
+            const { data, error } = await supabaseClient
+              .from(CLIENTS_TABLE)
+              .select('*');
+              
+            if (error) throw error;
+            return data || [];
+          } catch (err) {
+            console.warn('Error fetching clients:', err);
+            return [];
+          }
+        };
+        
+        const fetchAnalyses = async () => {
+          try {
+            const { data, error } = await supabaseClient
+              .from(ANALYSES_TABLE)
+              .select('*');
+              
+            if (error) throw error;
+            return data || [];
+          } catch (err) {
+            console.warn('Error fetching analyses:', err);
+            return [];
+          }
+        };
+        
+        // Fetch data in parallel
+        const [clients, analyses] = await Promise.all([
+          fetchClients(),
+          fetchAnalyses()
+        ]);
+        
+        // Transform and load data
         dispatch({
           type: 'LOAD_DATA',
           payload: {
-            clients: (clients || []).map(fromDbClient),
-            analyses: analyses || []
+            clients: clients,
+            analyses: analyses
           }
         });
       } catch (err) {
-        console.error('Error fetching data from Supabase:', err);
+        console.error('Error fetching data:', err);
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to load data' });
       }
     };
 
@@ -201,12 +198,19 @@ export function ClientProvider({ children }) {
 
   // Save data to localStorage whenever state changes
   React.useEffect(() => {
-    safeSetToStorage('financialAnalysisData', state);
-  }, [state]);
+    safeSetToStorage('financialAnalysisData', {
+      clients: state.clients,
+      analyses: state.analyses
+    });
+  }, [state.clients, state.analyses]);
 
   // Filter data based on user role and permissions
   const getFilteredState = () => {
-    if (!user) return { clients: [], analyses: [] };
+    if (!user) return { 
+      ...state, 
+      clients: [], 
+      analyses: [] 
+    };
     
     // Admins can see all data
     if (user.role === 'admin') {
@@ -230,112 +234,213 @@ export function ClientProvider({ children }) {
     };
   };
 
-  // Enhanced dispatch to add userId to new clients
-  const enhancedDispatch = (action) => {
-    if (action.type === 'ADD_CLIENT' && user) {
-      action.payload.userId = user.id;
-    }
-    dispatch(action);
-  };
-
   const addClient = async (clientData) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
     try {
-      const dbClient = toDbClient(clientData);
-      const { data, error } = await supabaseClient
-        .from(CLIENTS_TABLE)
-        .insert(dbClient)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const newClient = fromDbClient(data);
-      enhancedDispatch({ type: 'ADD_CLIENT', payload: newClient });
-      return newClient;
+      // Generate a unique ID if one doesn't exist
+      const clientWithId = {
+        ...clientData,
+        id: clientData.id || `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        userId: user?.id,
+        createdAt: clientData.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // If Supabase is available, try to save there first
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from(CLIENTS_TABLE)
+            .insert(clientWithId)
+            .select()
+            .single();
+            
+          if (error) {
+            console.warn('Supabase insert failed, using localStorage:', error);
+          } else {
+            console.log('Client added to Supabase:', data);
+            dispatch({ type: 'ADD_CLIENT', payload: data });
+            return data;
+          }
+        } catch (supabaseError) {
+          console.warn('Supabase operation failed:', supabaseError);
+          // Continue to localStorage fallback
+        }
+      }
+      
+      // Fall back to localStorage
+      dispatch({ type: 'ADD_CLIENT', payload: clientWithId });
+      return clientWithId;
+      
     } catch (err) {
       console.error('Error adding client:', err);
-      throw err;
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to add client' });
+      throw new Error('Failed to add client. Please try again.');
     }
   };
 
   const updateClient = async (clientData) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
     try {
-      const dbClient = toDbClient(clientData);
-      const { data, error } = await supabaseClient
-        .from(CLIENTS_TABLE)
-        .update(dbClient)
-        .eq('id', clientData.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const updatedClient = fromDbClient(data);
-      enhancedDispatch({ type: 'UPDATE_CLIENT', payload: updatedClient });
-      return updatedClient;
+      const updatedData = {
+        ...clientData,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // If Supabase is available, try to update there first
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from(CLIENTS_TABLE)
+            .update(updatedData)
+            .eq('id', clientData.id)
+            .select()
+            .single();
+            
+          if (error) {
+            console.warn('Supabase update failed, using localStorage:', error);
+          } else {
+            dispatch({ type: 'UPDATE_CLIENT', payload: data });
+            return data;
+          }
+        } catch (supabaseError) {
+          console.warn('Supabase operation failed:', supabaseError);
+          // Continue to localStorage fallback
+        }
+      }
+      
+      // Fall back to localStorage
+      dispatch({ type: 'UPDATE_CLIENT', payload: updatedData });
+      return updatedData;
+      
     } catch (err) {
       console.error('Error updating client:', err);
-      throw err;
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to update client' });
+      throw new Error('Failed to update client. Please try again.');
     }
   };
 
   const deleteClient = async (clientId) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
     try {
-      const { error } = await supabaseClient
-        .from(CLIENTS_TABLE)
-        .delete()
-        .eq('id', clientId);
-
-      if (error) throw error;
-
-      enhancedDispatch({ type: 'DELETE_CLIENT', payload: clientId });
+      // If Supabase is available, try to delete there first
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient
+            .from(CLIENTS_TABLE)
+            .delete()
+            .eq('id', clientId);
+            
+          if (error) {
+            console.warn('Supabase delete failed, using localStorage:', error);
+          }
+        } catch (supabaseError) {
+          console.warn('Supabase operation failed:', supabaseError);
+          // Continue to localStorage fallback
+        }
+      }
+      
+      // Always remove from local state
+      dispatch({ type: 'DELETE_CLIENT', payload: clientId });
+      
     } catch (err) {
       console.error('Error deleting client:', err);
-      throw err;
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to delete client' });
+      throw new Error('Failed to delete client. Please try again.');
     }
   };
 
   const addAnalysis = async (analysisData) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
     try {
-      const { data, error } = await supabaseClient
-        .from(ANALYSES_TABLE)
-        .insert(analysisData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      enhancedDispatch({ type: 'ADD_ANALYSIS', payload: data });
-      return data;
+      const analysisWithId = {
+        ...analysisData,
+        id: analysisData.id || `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: analysisData.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // If Supabase is available, try to save there first
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from(ANALYSES_TABLE)
+            .insert(analysisWithId)
+            .select()
+            .single();
+            
+          if (error) {
+            console.warn('Supabase insert failed, using localStorage:', error);
+          } else {
+            dispatch({ type: 'ADD_ANALYSIS', payload: data });
+            return data;
+          }
+        } catch (supabaseError) {
+          console.warn('Supabase operation failed:', supabaseError);
+          // Continue to localStorage fallback
+        }
+      }
+      
+      // Fall back to localStorage
+      dispatch({ type: 'ADD_ANALYSIS', payload: analysisWithId });
+      return analysisWithId;
+      
     } catch (err) {
       console.error('Error adding analysis:', err);
-      throw err;
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to add analysis' });
+      throw new Error('Failed to add analysis. Please try again.');
     }
   };
 
   const updateAnalysis = async (analysisData) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
     try {
-      const { data, error } = await supabaseClient
-        .from(ANALYSES_TABLE)
-        .update(analysisData)
-        .eq('id', analysisData.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      enhancedDispatch({ type: 'UPDATE_ANALYSIS', payload: data });
-      return data;
+      const updatedData = {
+        ...analysisData,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // If Supabase is available, try to update there first
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from(ANALYSES_TABLE)
+            .update(updatedData)
+            .eq('id', analysisData.id)
+            .select()
+            .single();
+            
+          if (error) {
+            console.warn('Supabase update failed, using localStorage:', error);
+          } else {
+            dispatch({ type: 'UPDATE_ANALYSIS', payload: data });
+            return data;
+          }
+        } catch (supabaseError) {
+          console.warn('Supabase operation failed:', supabaseError);
+          // Continue to localStorage fallback
+        }
+      }
+      
+      // Fall back to localStorage
+      dispatch({ type: 'UPDATE_ANALYSIS', payload: updatedData });
+      return updatedData;
+      
     } catch (err) {
       console.error('Error updating analysis:', err);
-      throw err;
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to update analysis' });
+      throw new Error('Failed to update analysis. Please try again.');
     }
   };
 
   return (
     <ClientContext.Provider value={{
       state: getFilteredState(),
-      dispatch: enhancedDispatch,
       addClient,
       updateClient,
       deleteClient,

@@ -32,5 +32,14 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],
     exclude: ['@questlabs/react-sdk']
+  },
+  server: {
+    host: true, // Listen on all addresses
+    port: 5173,
+    strictPort: false,
+  },
+  preview: {
+    port: 4173,
+    host: true,
   }
 });
