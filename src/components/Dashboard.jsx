@@ -22,8 +22,14 @@ function Dashboard() {
       userId: user.id,
       createdAt: new Date().toISOString(),
     };
-    await addClient(newClient);
-    setShowClientModal(false);
+    try {
+      await addClient(newClient);
+      setShowClientModal(false);
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding client:', error);
+      return { success: false, message: error.message || 'Failed to add client.' };
+    }
   };
 
   const handleDeleteClient = async (clientId) => {

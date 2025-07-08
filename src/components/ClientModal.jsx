@@ -31,10 +31,21 @@ function ClientModal({ onClose, onSave, client = null }) {
     children: client?.children || [],
     ...client
   });
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+    setErrorMessage('');
+    try {
+      const result = await onSave(formData);
+      if (result && result.success === false) {
+        setErrorMessage(result.message);
+      } else {
+        onClose();
+      }
+    } catch (error) {
+      setErrorMessage(error.message || 'An error occurred while saving the client.');
+    }
   };
 
   const handleChange = (e) => {
@@ -106,6 +117,11 @@ function ClientModal({ onClose, onSave, client = null }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
+          {errorMessage && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+              {errorMessage}
+            </div>
+          )}
           {/* Personal Information */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
