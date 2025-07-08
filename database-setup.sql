@@ -331,6 +331,146 @@ $$;
 GRANT EXECUTE ON FUNCTION public.create_user_account(
   TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT
 ) TO anon;
+
+-- RPC function to insert a new client record bypassing RLS
+CREATE OR REPLACE FUNCTION public.create_client_record(
+  p_id UUID DEFAULT uuid_generate_v4(),
+  p_user_id UUID,
+  p_first_name TEXT,
+  p_last_name TEXT,
+  p_email TEXT DEFAULT NULL,
+  p_phone TEXT DEFAULT NULL,
+  p_address TEXT DEFAULT NULL,
+  p_city TEXT DEFAULT NULL,
+  p_state TEXT DEFAULT NULL,
+  p_zip_code TEXT DEFAULT NULL,
+  p_date_of_birth DATE DEFAULT NULL,
+  p_occupation TEXT DEFAULT NULL,
+  p_employer TEXT DEFAULT NULL,
+  p_marital_status TEXT DEFAULT NULL,
+  p_spouse_first_name TEXT DEFAULT NULL,
+  p_spouse_last_name TEXT DEFAULT NULL,
+  p_spouse_date_of_birth DATE DEFAULT NULL,
+  p_spouse_occupation TEXT DEFAULT NULL,
+  p_spouse_employer TEXT DEFAULT NULL,
+  p_spouse_phone TEXT DEFAULT NULL,
+  p_spouse_email TEXT DEFAULT NULL,
+  p_children JSONB DEFAULT NULL
+)
+RETURNS clients
+LANGUAGE SQL
+SECURITY DEFINER
+AS $$
+  INSERT INTO clients (
+    id,
+    user_id,
+    first_name,
+    last_name,
+    email,
+    phone,
+    address,
+    city,
+    state,
+    zip_code,
+    date_of_birth,
+    occupation,
+    employer,
+    marital_status,
+    spouse_first_name,
+    spouse_last_name,
+    spouse_date_of_birth,
+    spouse_occupation,
+    spouse_employer,
+    spouse_phone,
+    spouse_email,
+    children,
+    created_at,
+    updated_at
+  ) VALUES (
+    COALESCE(p_id, uuid_generate_v4()),
+    p_user_id,
+    p_first_name,
+    p_last_name,
+    p_email,
+    p_phone,
+    p_address,
+    p_city,
+    p_state,
+    p_zip_code,
+    p_date_of_birth,
+    p_occupation,
+    p_employer,
+    p_marital_status,
+    p_spouse_first_name,
+    p_spouse_last_name,
+    p_spouse_date_of_birth,
+    p_spouse_occupation,
+    p_spouse_employer,
+    p_spouse_phone,
+    p_spouse_email,
+    p_children,
+    NOW(),
+    NOW()
+  )
+  RETURNING *;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.create_client_record(
+  UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT,
+  DATE, TEXT, TEXT, TEXT, TEXT, TEXT, DATE, TEXT, TEXT, TEXT,
+  TEXT, JSONB
+) TO anon;
+
+-- RPC function to insert a new financial analysis bypassing RLS
+CREATE OR REPLACE FUNCTION public.create_financial_analysis_record(
+  p_id UUID DEFAULT uuid_generate_v4(),
+  p_client_id UUID,
+  p_income JSONB DEFAULT NULL,
+  p_expenses JSONB DEFAULT NULL,
+  p_assets JSONB DEFAULT NULL,
+  p_liabilities JSONB DEFAULT NULL,
+  p_financial_goals JSONB DEFAULT NULL,
+  p_life_insurance JSONB DEFAULT NULL,
+  p_net_income NUMERIC DEFAULT NULL,
+  p_net_worth NUMERIC DEFAULT NULL
+)
+RETURNS financial_analyses
+LANGUAGE SQL
+SECURITY DEFINER
+AS $$
+  INSERT INTO financial_analyses (
+    id,
+    client_id,
+    income,
+    expenses,
+    assets,
+    liabilities,
+    financial_goals,
+    life_insurance,
+    net_income,
+    net_worth,
+    created_at,
+    updated_at
+  ) VALUES (
+    COALESCE(p_id, uuid_generate_v4()),
+    p_client_id,
+    p_income,
+    p_expenses,
+    p_assets,
+    p_liabilities,
+    p_financial_goals,
+    p_life_insurance,
+    p_net_income,
+    p_net_worth,
+    NOW(),
+    NOW()
+  )
+  RETURNING *;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.create_financial_analysis_record(
+  UUID, UUID, JSONB, JSONB, JSONB, JSONB, JSONB, JSONB, NUMERIC, NUMERIC
+) TO anon;
 -- Grant permissions for anon role
 GRANT USAGE ON SCHEMA public TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon;
