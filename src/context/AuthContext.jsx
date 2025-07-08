@@ -348,35 +348,39 @@ export function AuthProvider({ children }) {
   const addUser = async (userData) => {
     try {
       console.log('Adding new user:', userData.email);
-      
+
       // Hash password
       const passwordHash = await hashPassword(userData.password || 'temp123');
-      
-      // Transform to DB format
-      const dbUser = transformAppUser(userData);
-      dbUser.password_hash = passwordHash;
-      
-      // Insert into Supabase
-      const { data, error } = await supabaseClient
-        .from(USERS_TABLE)
-        .insert(dbUser)
-        .select()
-        .single();
+
+      // Use the RPC function to bypass RLS
+      const { data: newUser, error } = await supabaseClient.rpc(
+        'create_user_account',
+        {
+          p_email: userData.email,
+          p_password_hash: passwordHash,
+          p_first_name: userData.firstName,
+          p_last_name: userData.lastName,
+          p_role: userData.role || 'financial_professional',
+          p_company: userData.company || '',
+          p_phone: userData.phone || '',
+          p_bio: userData.bio || ''
+        }
+      );
         
       if (error) {
         console.error('Error adding user:', error);
         return { success: false, error: error.message };
       }
-      
-      console.log('User added successfully:', data);
-      
+
+      console.log('User added successfully:', newUser);
+
       // Transform back to app format
-      const newUser = transformSupabaseUser(data);
-      
+      const newUserApp = transformSupabaseUser(newUser);
+
       // Add to state
-      dispatch({ type: 'ADD_USER', payload: newUser });
-      
-      return { success: true, user: newUser };
+      dispatch({ type: 'ADD_USER', payload: newUserApp });
+
+      return { success: true, user: newUserApp };
     } catch (error) {
       console.error('Error adding user:', error);
       return { success: false, error: 'Failed to add user' };
