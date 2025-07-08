@@ -187,7 +187,47 @@ CREATE POLICY "Users can delete analyses for their clients"
     AND clients.user_id = auth.uid()
   ));
 
-CREATE POLICY "Admin can view all analyses" 
-  ON financial_analyses 
-  FOR SELECT 
+CREATE POLICY "Admin can view all analyses"
+  ON financial_analyses
+  FOR SELECT
   USING ((SELECT role FROM users_pt2024 WHERE id = auth.uid()) = 'admin');
+
+-- RPC function to fetch minimal user info for login
+CREATE OR REPLACE FUNCTION public.get_user_for_login(p_email TEXT)
+RETURNS TABLE (
+  id UUID,
+  email VARCHAR,
+  password_hash TEXT,
+  first_name VARCHAR,
+  last_name VARCHAR,
+  role VARCHAR,
+  is_active BOOLEAN,
+  has_completed_onboarding BOOLEAN,
+  profile_photo TEXT,
+  company VARCHAR,
+  phone VARCHAR,
+  bio TEXT,
+  created_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE SQL
+SECURITY DEFINER
+AS $$
+  SELECT id,
+         email,
+         password_hash,
+         first_name,
+         last_name,
+         role,
+         is_active,
+         has_completed_onboarding,
+         profile_photo,
+         company,
+         phone,
+         bio,
+         created_at
+  FROM users_pt2024
+  WHERE email = p_email;
+$$;
+
+-- Allow anonymous execution for login purposes
+GRANT EXECUTE ON FUNCTION public.get_user_for_login(TEXT) TO anon;

@@ -54,8 +54,11 @@ VITE_QUEST_TOKEN=your-quest-token
    - Go to your Supabase project dashboard
    - Navigate to "SQL Editor"
    - Create a "New query"
-   - Copy and paste the contents of `database-setup.sql`
-   - Run the query
+  - Copy and paste the contents of `database-setup.sql`
+  - Run the query
+  - The script creates an RPC function `get_user_for_login(email)` which
+    exposes only essential user fields and is callable by anonymous users for
+    login verification.
 
 ## Running the Application
 
