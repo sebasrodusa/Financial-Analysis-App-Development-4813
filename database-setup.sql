@@ -5,7 +5,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Users Table
-CREATE TABLE users_pt2024 (
+CREATE TABLE IF NOT EXISTS users_pt2024 (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
@@ -45,7 +45,7 @@ INSERT INTO users_pt2024 (
   role, 
   is_active, 
   has_completed_onboarding
-) VALUES (
+  ) VALUES (
   'sebasrodus+admin@gmail.com',
   '$2b$10$XdR5Mfl6nA8CXHGXE1Uqz.SjVoam.nWjolSbQpIy5keN5XvbIlGk6', -- hashed 'admin1234'
   'Admin',
@@ -53,7 +53,8 @@ INSERT INTO users_pt2024 (
   'admin',
   true,
   true
-);
+  )
+  ON CONFLICT DO NOTHING;
 
 -- Initial advisor user (password: advisor123)
 INSERT INTO users_pt2024 (
@@ -72,10 +73,11 @@ INSERT INTO users_pt2024 (
   'financial_professional',
   true,
   true
-);
+  )
+  ON CONFLICT DO NOTHING;
 
 -- Clients Table (if you want to store in database instead of localStorage)
-CREATE TABLE clients (
+CREATE TABLE IF NOT EXISTS clients (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users_pt2024(id),
   first_name VARCHAR(100) NOT NULL,
@@ -132,7 +134,7 @@ CREATE POLICY "Admin can view all clients"
   USING ((SELECT role FROM users_pt2024 WHERE id = auth.uid()) = 'admin');
 
 -- Financial Analyses Table (if you want to store in database instead of localStorage)
-CREATE TABLE financial_analyses (
+CREATE TABLE IF NOT EXISTS financial_analyses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   client_id UUID NOT NULL REFERENCES clients(id),
   income JSONB,
