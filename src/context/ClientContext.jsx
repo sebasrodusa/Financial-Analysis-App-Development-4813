@@ -282,8 +282,35 @@ export function ClientProvider({ children }) {
       if (supabaseClient) {
         try {
           const clientDb = toSnakeCase(clientWithId);
+          const allowed = [
+            'id',
+            'user_id',
+            'first_name',
+            'last_name',
+            'email',
+            'phone',
+            'address',
+            'city',
+            'state',
+            'zip_code',
+            'date_of_birth',
+            'occupation',
+            'employer',
+            'marital_status',
+            'spouse_first_name',
+            'spouse_last_name',
+            'spouse_date_of_birth',
+            'spouse_occupation',
+            'spouse_employer',
+            'spouse_phone',
+            'spouse_email',
+            'children'
+          ];
+          const filteredDb = Object.fromEntries(
+            Object.entries(clientDb).filter(([key]) => allowed.includes(key))
+          );
           const rpcPayload = Object.fromEntries(
-            Object.entries(clientDb).map(([key, val]) => [`p_${key}`, val])
+            Object.entries(filteredDb).map(([key, val]) => [`p_${key}`, val])
           );
           const { data, error } = await supabaseClient.rpc(
             'create_client_record',
@@ -404,10 +431,49 @@ export function ClientProvider({ children }) {
       // If Supabase is available, try to save there first via RPC
       if (supabaseClient) {
         try {
-          const { id, clientId, income, expenses, assets, liabilities, financialGoals, lifeInsurance, netIncome, netWorth, createdAt, updatedAt } = analysisWithId;
-          const analysisDb = toSnakeCase({ id, clientId, income, expenses, assets, liabilities, financialGoals, lifeInsurance, netIncome, netWorth, createdAt, updatedAt });
+          const {
+            id,
+            clientId,
+            income,
+            expenses,
+            assets,
+            liabilities,
+            financialGoals,
+            lifeInsurance,
+            netIncome,
+            netWorth,
+          } = analysisWithId;
+          const analysisDb = toSnakeCase({
+            id,
+            clientId,
+            income,
+            expenses,
+            assets,
+            liabilities,
+            financialGoals,
+            lifeInsurance,
+            netIncome,
+            netWorth,
+          });
+          const allowedAnalysis = [
+            'id',
+            'client_id',
+            'income',
+            'expenses',
+            'assets',
+            'liabilities',
+            'financial_goals',
+            'life_insurance',
+            'net_income',
+            'net_worth',
+          ];
+          const filteredAnalysis = Object.fromEntries(
+            Object.entries(analysisDb).filter(([key]) =>
+              allowedAnalysis.includes(key)
+            )
+          );
           const rpcPayload = Object.fromEntries(
-            Object.entries(analysisDb).map(([key, val]) => [`p_${key}`, val])
+            Object.entries(filteredAnalysis).map(([key, val]) => [`p_${key}`, val])
           );
           const { data, error } = await supabaseClient.rpc(
             'create_financial_analysis_record',
