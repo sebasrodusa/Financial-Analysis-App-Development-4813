@@ -142,12 +142,12 @@ const comparePassword = async (password, hash) => {
 // Transform Supabase user to app user
 const transformSupabaseUser = (dbUser) => {
   if (!dbUser) return null;
-  
+
   return {
     id: dbUser.id,
-    email: dbUser.email,
-    firstName: dbUser.first_name,
-    lastName: dbUser.last_name,
+    email: dbUser.email || '',
+    firstName: dbUser.first_name || '',
+    lastName: dbUser.last_name || '',
     role: dbUser.role || 'financial_professional',
     isActive: dbUser.is_active,
     hasCompletedOnboarding: dbUser.has_completed_onboarding,
