@@ -95,7 +95,7 @@ prospertrack/
 
 ## Security Notes
 
-- This application uses bcrypt for password hashing
+- This application uses bcryptjs for password hashing
 - Environment variables are used for sensitive configuration
 - Row-level security is implemented in the database
 

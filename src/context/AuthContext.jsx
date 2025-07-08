@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import supabaseClient from '../lib/supabase';
+import bcrypt from 'bcryptjs';
 
 const AuthContext = createContext();
 
@@ -127,20 +128,15 @@ const generateToken = () => {
          Math.random().toString(36).substring(2, 15);
 };
 
-// Simple hash function for demo purposes (in production, use proper bcrypt)
+// Hash password using bcryptjs
 const hashPassword = async (password) => {
-  // Simple hash for demo - in production use bcrypt
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'salt');
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const salt = await bcrypt.genSalt(10);
+  return await bcrypt.hash(password, salt);
 };
 
 // Compare password with hashed password
 const comparePassword = async (password, hash) => {
-  const hashedInput = await hashPassword(password);
-  return hashedInput === hash;
+  return await bcrypt.compare(password, hash);
 };
 
 // Transform Supabase user to app user

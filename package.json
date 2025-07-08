@@ -23,7 +23,8 @@
     "date-fns": "^4.1.0",
     "@react-pdf/renderer": "^3.1.14",
     "file-saver": "^2.0.5",
-    "react-to-print": "^2.14.15"
+    "react-to-print": "^2.14.15",
+    "bcryptjs": "^3.0.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
