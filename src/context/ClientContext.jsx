@@ -278,19 +278,21 @@ export function ClientProvider({ children }) {
         updatedAt: new Date().toISOString()
       };
       
-      // If Supabase is available, try to save there first
+      // If Supabase is available, try to save there first via RPC
       if (supabaseClient) {
         try {
           const clientDb = toSnakeCase(clientWithId);
-          const { data, error } = await supabaseClient
-            .from(CLIENTS_TABLE)
-            .insert(clientDb)
-            .select()
-            .single();
-            
+          const rpcPayload = Object.fromEntries(
+            Object.entries(clientDb).map(([key, val]) => [`p_${key}`, val])
+          );
+          const { data, error } = await supabaseClient.rpc(
+            'create_client_record',
+            rpcPayload
+          );
+
           if (error) {
             console.warn('Supabase insert failed, using localStorage:', error);
-          } else {
+          } else if (data) {
             console.log('Client added to Supabase:', data);
             const clientApp = toCamelCase(data);
             dispatch({ type: 'ADD_CLIENT', payload: clientApp });
@@ -399,20 +401,22 @@ export function ClientProvider({ children }) {
         updatedAt: new Date().toISOString()
       };
       
-      // If Supabase is available, try to save there first
+      // If Supabase is available, try to save there first via RPC
       if (supabaseClient) {
         try {
           const { id, clientId, income, expenses, assets, liabilities, financialGoals, lifeInsurance, netIncome, netWorth, createdAt, updatedAt } = analysisWithId;
           const analysisDb = toSnakeCase({ id, clientId, income, expenses, assets, liabilities, financialGoals, lifeInsurance, netIncome, netWorth, createdAt, updatedAt });
-          const { data, error } = await supabaseClient
-            .from(ANALYSES_TABLE)
-            .insert(analysisDb)
-            .select()
-            .single();
-            
+          const rpcPayload = Object.fromEntries(
+            Object.entries(analysisDb).map(([key, val]) => [`p_${key}`, val])
+          );
+          const { data, error } = await supabaseClient.rpc(
+            'create_financial_analysis_record',
+            rpcPayload
+          );
+
           if (error) {
             console.warn('Supabase insert failed, using localStorage:', error);
-          } else {
+          } else if (data) {
             const analysisApp = toCamelCase(data);
             dispatch({ type: 'ADD_ANALYSIS', payload: analysisApp });
             return analysisApp;
