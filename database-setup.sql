@@ -25,16 +25,25 @@ CREATE TABLE IF NOT EXISTS users_pt2024 (
 -- Enable Row Level Security on users table
 ALTER TABLE users_pt2024 ENABLE ROW LEVEL SECURITY;
 
+-- Helper function to check if a user is an admin
+CREATE OR REPLACE FUNCTION public.is_admin(p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+AS $$
+  SELECT role = 'admin' FROM users_pt2024 WHERE id = p_user_id;
+$$;
+GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO anon;
+
 -- Create policies for users table
 CREATE POLICY "Users can view their own data" 
   ON users_pt2024 
   FOR SELECT 
   USING (auth.uid() = id);
 
-CREATE POLICY "Admin can view all users" 
-  ON users_pt2024 
-  FOR SELECT 
-  USING ((SELECT role FROM users_pt2024 WHERE id = auth.uid()) = 'admin');
+CREATE POLICY "Admin can view all users"
+  ON users_pt2024
+  FOR SELECT
+  USING (is_admin(auth.uid()));
 
 -- Initial admin user (password: admin1234)
 INSERT INTO users_pt2024 (
@@ -128,10 +137,10 @@ CREATE POLICY "Users can delete their own clients"
   FOR DELETE 
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Admin can view all clients" 
-  ON clients 
-  FOR SELECT 
-  USING ((SELECT role FROM users_pt2024 WHERE id = auth.uid()) = 'admin');
+CREATE POLICY "Admin can view all clients"
+  ON clients
+  FOR SELECT
+  USING (is_admin(auth.uid()));
 
 -- Financial Analyses Table (if you want to store in database instead of localStorage)
 CREATE TABLE IF NOT EXISTS financial_analyses (
@@ -192,7 +201,7 @@ CREATE POLICY "Users can delete analyses for their clients"
 CREATE POLICY "Admin can view all analyses"
   ON financial_analyses
   FOR SELECT
-  USING ((SELECT role FROM users_pt2024 WHERE id = auth.uid()) = 'admin');
+  USING (is_admin(auth.uid()));
 
 -- RPC function to fetch minimal user info for login
 CREATE OR REPLACE FUNCTION public.get_user_for_login(p_email TEXT)
