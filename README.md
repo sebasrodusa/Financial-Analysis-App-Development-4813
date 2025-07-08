@@ -32,10 +32,18 @@ cd prospertrack
 npm install
 ```
 
-3. Create a `.env` file in the root directory based on `.env.example` and add your Supabase credentials:
+3. Create a `.env` file in the root directory based on `.env.example` and add your credentials:
 ```
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
+
+VITE_QUEST_APIKEY=your-quest-api-key
+VITE_QUEST_ENTITYID=your-quest-entity-id
+VITE_QUEST_API_TYPE=PRODUCTION
+VITE_QUEST_ONBOARDING_QUESTID=your-onboarding-quest-id
+VITE_GET_STARTED_QUESTID=your-get-started-quest-id
+VITE_QUEST_USER_ID=your-quest-user-id
+VITE_QUEST_TOKEN=your-quest-token
 ```
 
 ## Database Setup

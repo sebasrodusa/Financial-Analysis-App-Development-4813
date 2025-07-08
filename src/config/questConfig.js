@@ -1,11 +1,11 @@
 // Quest configuration with safe defaults
 export const questConfig = {
-  QUEST_ONBOARDING_QUESTID: 'c-greta-onboarding',
-  GET_STARTED_QUESTID: 'c-greta-get-started',
-  USER_ID: 'u-ff23eada-0109-47c6-b532-8c003e043f9d',
-  APIKEY: 'k-01e20326-644b-41ae-a703-65bfe60fc6c1',
-  TOKEN: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1LWZmMjNlYWRhLTAxMDktNDdjNi1iNTMyLThjMDAzZTA0M2Y5ZCIsImlhdCI6MTc1MTUwNjQ2MywiZXhwIjoxNzU0MDk4NDYzfQ.AiAYpigfXfG8kdlcUXHZq12iW4_zf5SgYaTbw7eZvH4',
-  ENTITYID: 'e-7a4dcfcd-535e-4d47-9fd2-11d2085767dd',
+  QUEST_ONBOARDING_QUESTID: import.meta.env.VITE_QUEST_ONBOARDING_QUESTID,
+  GET_STARTED_QUESTID: import.meta.env.VITE_GET_STARTED_QUESTID,
+  USER_ID: import.meta.env.VITE_QUEST_USER_ID,
+  APIKEY: import.meta.env.VITE_QUEST_APIKEY,
+  TOKEN: import.meta.env.VITE_QUEST_TOKEN,
+  ENTITYID: import.meta.env.VITE_QUEST_ENTITYID,
   PRIMARY_COLOR: '#3B82F6'
 };
 
