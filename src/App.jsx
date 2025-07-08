@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ClientProvider } from './context/ClientContext';
