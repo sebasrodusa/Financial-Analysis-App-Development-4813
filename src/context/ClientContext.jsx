@@ -137,6 +137,19 @@ const toCamelCase = (obj = {}) =>
     ])
   );
 
+// Generate a UUID v4 string
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Simple fallback for environments without crypto.randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 export function ClientProvider({ children }) {
   const [state, dispatch] = useReducer(clientReducer, initialState);
   const { user } = useAuth();
@@ -259,7 +272,7 @@ export function ClientProvider({ children }) {
       // Generate a unique ID if one doesn't exist
       const clientWithId = {
         ...clientData,
-        id: clientData.id || `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: clientData.id || generateUUID(),
         userId: user?.id,
         createdAt: clientData.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -381,7 +394,7 @@ export function ClientProvider({ children }) {
     try {
       const analysisWithId = {
         ...analysisData,
-        id: analysisData.id || `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: analysisData.id || generateUUID(),
         createdAt: analysisData.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -389,7 +402,8 @@ export function ClientProvider({ children }) {
       // If Supabase is available, try to save there first
       if (supabaseClient) {
         try {
-          const analysisDb = toSnakeCase(analysisWithId);
+          const { id, clientId, income, expenses, assets, liabilities, financialGoals, lifeInsurance, netIncome, netWorth, createdAt, updatedAt } = analysisWithId;
+          const analysisDb = toSnakeCase({ id, clientId, income, expenses, assets, liabilities, financialGoals, lifeInsurance, netIncome, netWorth, createdAt, updatedAt });
           const { data, error } = await supabaseClient
             .from(ANALYSES_TABLE)
             .insert(analysisDb)
@@ -432,7 +446,8 @@ export function ClientProvider({ children }) {
       // If Supabase is available, try to update there first
       if (supabaseClient) {
         try {
-          const updatedDb = toSnakeCase(updatedData);
+          const { id, clientId, income, expenses, assets, liabilities, financialGoals, lifeInsurance, netIncome, netWorth, createdAt, updatedAt } = updatedData;
+          const updatedDb = toSnakeCase({ id, clientId, income, expenses, assets, liabilities, financialGoals, lifeInsurance, netIncome, netWorth, createdAt, updatedAt });
           const { data, error } = await supabaseClient
             .from(ANALYSES_TABLE)
             .update(updatedDb)
