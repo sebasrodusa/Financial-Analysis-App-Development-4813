@@ -185,41 +185,51 @@ const transformAppUser = (appUser, includePassword = false) => {
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  const fetchUsers = async () => {
+    try {
+      const { data: users, error } = await supabaseClient
+        .from(USERS_TABLE)
+        .select('*');
+      if (error) {
+        console.error('Error loading users:', error);
+      } else if (users) {
+        const appUsers = users.map(transformSupabaseUser);
+        dispatch({ type: 'SET_USERS', payload: appUsers });
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  };
+
   // Load data on mount
   useEffect(() => {
     const loadInitialData = async () => {
       dispatch({ type: 'SET_LOADING', payload: true });
-      
+
       try {
-        console.log('Loading users from Supabase...');
-        
-        // Load users from Supabase
-        const { data: users, error } = await supabaseClient
-          .from(USERS_TABLE)
-          .select('*');
-          
-        if (error) {
-          console.error('Error loading users:', error);
-        } else if (users) {
-          console.log('Loaded users:', users.length);
-          // Transform users to app format
-          const appUsers = users.map(transformSupabaseUser);
-          dispatch({ type: 'SET_USERS', payload: appUsers });
-        }
-        
         // Check for current user in localStorage
         const savedUser = getFromStorage('currentUser');
+
         if (savedUser) {
           // Verify user still exists in DB
-          const userExists = users?.find(u => u.id === savedUser.id);
-          if (userExists) {
-            const appUser = transformSupabaseUser(userExists);
-            dispatch({ type: 'LOGIN', payload: appUser });
-            console.log('Restored user session:', appUser.email);
-          } else {
-            // User no longer exists in DB, log them out
+          const { data: dbUser, error } = await supabaseClient
+            .from(USERS_TABLE)
+            .select('*')
+            .eq('id', savedUser.id)
+            .single();
+
+          if (error || !dbUser) {
             dispatch({ type: 'LOGOUT' });
             localStorage.removeItem('currentUser');
+          } else {
+            const appUser = transformSupabaseUser(dbUser);
+            dispatch({ type: 'LOGIN', payload: appUser });
+            console.log('Restored user session:', appUser.email);
+
+            // Load users only for admins
+            if (appUser.role === 'admin') {
+              await fetchUsers();
+            }
           }
         }
       } catch (error) {
@@ -227,7 +237,7 @@ export function AuthProvider({ children }) {
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
-      
+
       // Clean expired tokens
       dispatch({ type: 'CLEAN_EXPIRED_TOKENS' });
     };
@@ -286,6 +296,9 @@ export function AuthProvider({ children }) {
       if (email === 'sebasrodus+admin@gmail.com' && password === 'admin1234') {
         const appUser = transformSupabaseUser(user);
         dispatch({ type: 'LOGIN', payload: appUser });
+        if (appUser.role === 'admin') {
+          await fetchUsers();
+        }
         dispatch({ type: 'SET_LOADING', payload: false });
         console.log('Admin login successful');
         return { success: true, user: appUser };
@@ -294,6 +307,9 @@ export function AuthProvider({ children }) {
       if (email === 'advisor@prospertrack.com' && password === 'advisor123') {
         const appUser = transformSupabaseUser(user);
         dispatch({ type: 'LOGIN', payload: appUser });
+        if (appUser.role === 'admin') {
+          await fetchUsers();
+        }
         dispatch({ type: 'SET_LOADING', payload: false });
         console.log('Advisor login successful');
         return { success: true, user: appUser };
@@ -306,6 +322,9 @@ export function AuthProvider({ children }) {
       if (passwordMatches) {
         const appUser = transformSupabaseUser(user);
         dispatch({ type: 'LOGIN', payload: appUser });
+        if (appUser.role === 'admin') {
+          await fetchUsers();
+        }
         dispatch({ type: 'SET_LOADING', payload: false });
         console.log('Login successful for:', appUser.email);
         return { success: true, user: appUser };
