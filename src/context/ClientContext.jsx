@@ -3,8 +3,8 @@ import { useAuth } from './AuthContext';
 import supabaseClient from '../lib/supabase';
 
 // Table names
-const CLIENTS_TABLE = 'client_pt2024';
-const ANALYSES_TABLE = 'analyses_pt2024';
+const CLIENTS_TABLE = 'clients';
+const ANALYSES_TABLE = 'financial_analyses';
 
 const ClientContext = createContext();
 
