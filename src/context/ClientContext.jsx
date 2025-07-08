@@ -2,7 +2,8 @@ import React, { createContext, useContext, useReducer } from 'react';
 import { useAuth } from './AuthContext';
 import supabaseClient from '../lib/supabase';
 
-const CLIENTS_TABLE = 'client_pt2024';
+// Table names
+const CLIENTS_TABLE = 'clients';
 const ANALYSES_TABLE = 'analyses_pt2024';
 
 const ClientContext = createContext();
@@ -65,6 +66,68 @@ function clientReducer(state, action) {
   }
 }
 
+// Convert app client to DB format (snake_case)
+function toDbClient(appClient) {
+  if (!appClient) return null;
+  return {
+    id: appClient.id,
+    user_id: appClient.userId,
+    first_name: appClient.firstName,
+    last_name: appClient.lastName,
+    email: appClient.email,
+    phone: appClient.phone,
+    address: appClient.address,
+    city: appClient.city,
+    state: appClient.state,
+    zip_code: appClient.zipCode,
+    date_of_birth: appClient.dateOfBirth,
+    occupation: appClient.occupation,
+    employer: appClient.employer,
+    marital_status: appClient.maritalStatus,
+    spouse_first_name: appClient.spouseFirstName,
+    spouse_last_name: appClient.spouseLastName,
+    spouse_date_of_birth: appClient.spouseDateOfBirth,
+    spouse_occupation: appClient.spouseOccupation,
+    spouse_employer: appClient.spouseEmployer,
+    spouse_phone: appClient.spousePhone,
+    spouse_email: appClient.spouseEmail,
+    children: appClient.children,
+    created_at: appClient.createdAt,
+    updated_at: appClient.updatedAt
+  };
+}
+
+// Convert DB client (snake_case) to app format (camelCase)
+function fromDbClient(dbClient) {
+  if (!dbClient) return null;
+  return {
+    id: dbClient.id,
+    userId: dbClient.user_id,
+    firstName: dbClient.first_name,
+    lastName: dbClient.last_name,
+    email: dbClient.email,
+    phone: dbClient.phone,
+    address: dbClient.address,
+    city: dbClient.city,
+    state: dbClient.state,
+    zipCode: dbClient.zip_code,
+    dateOfBirth: dbClient.date_of_birth,
+    occupation: dbClient.occupation,
+    employer: dbClient.employer,
+    maritalStatus: dbClient.marital_status,
+    spouseFirstName: dbClient.spouse_first_name,
+    spouseLastName: dbClient.spouse_last_name,
+    spouseDateOfBirth: dbClient.spouse_date_of_birth,
+    spouseOccupation: dbClient.spouse_occupation,
+    spouseEmployer: dbClient.spouse_employer,
+    spousePhone: dbClient.spouse_phone,
+    spouseEmail: dbClient.spouse_email,
+    children: dbClient.children,
+    createdAt: dbClient.created_at,
+    updatedAt: dbClient.updated_at
+  };
+}
+
 // Safe localStorage operations
 const safeGetFromStorage = (key, fallback = null) => {
   try {
@@ -124,7 +187,7 @@ export function ClientProvider({ children }) {
         dispatch({
           type: 'LOAD_DATA',
           payload: {
-            clients: clients || [],
+            clients: (clients || []).map(fromDbClient),
             analyses: analyses || []
           }
         });
@@ -177,16 +240,18 @@ export function ClientProvider({ children }) {
 
   const addClient = async (clientData) => {
     try {
+      const dbClient = toDbClient(clientData);
       const { data, error } = await supabaseClient
         .from(CLIENTS_TABLE)
-        .insert(clientData)
+        .insert(dbClient)
         .select()
         .single();
 
       if (error) throw error;
 
-      enhancedDispatch({ type: 'ADD_CLIENT', payload: data });
-      return data;
+      const newClient = fromDbClient(data);
+      enhancedDispatch({ type: 'ADD_CLIENT', payload: newClient });
+      return newClient;
     } catch (err) {
       console.error('Error adding client:', err);
       throw err;
@@ -195,17 +260,19 @@ export function ClientProvider({ children }) {
 
   const updateClient = async (clientData) => {
     try {
+      const dbClient = toDbClient(clientData);
       const { data, error } = await supabaseClient
         .from(CLIENTS_TABLE)
-        .update(clientData)
+        .update(dbClient)
         .eq('id', clientData.id)
         .select()
         .single();
 
       if (error) throw error;
 
-      enhancedDispatch({ type: 'UPDATE_CLIENT', payload: data });
-      return data;
+      const updatedClient = fromDbClient(data);
+      enhancedDispatch({ type: 'UPDATE_CLIENT', payload: updatedClient });
+      return updatedClient;
     } catch (err) {
       console.error('Error updating client:', err);
       throw err;
