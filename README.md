@@ -56,6 +56,7 @@ VITE_QUEST_TOKEN=your-quest-token
    - Create a "New query"
    - Copy and paste the contents of `database-setup.sql`
    - Run the query
+**Note:** `database-setup.sql` should normally be run only once. If you need to rerun it, drop the existing tables or delete your Supabase schema before executing the script again.
 
 ## Running the Application
 
