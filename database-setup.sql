@@ -233,3 +233,75 @@ $$;
 
 -- Allow anonymous execution for login purposes
 GRANT EXECUTE ON FUNCTION public.get_user_for_login(TEXT) TO anon;
+
+-- RPC function to create a new user account with default values
+CREATE OR REPLACE FUNCTION public.create_user_account(
+  p_email TEXT,
+  p_password_hash TEXT,
+  p_first_name TEXT,
+  p_last_name TEXT,
+  p_role TEXT DEFAULT 'financial_professional',
+  p_company TEXT DEFAULT '',
+  p_phone TEXT DEFAULT '',
+  p_bio TEXT DEFAULT ''
+)
+RETURNS TABLE (
+  id UUID,
+  email VARCHAR,
+  first_name VARCHAR,
+  last_name VARCHAR,
+  role VARCHAR,
+  is_active BOOLEAN,
+  has_completed_onboarding BOOLEAN,
+  profile_photo TEXT,
+  company VARCHAR,
+  phone VARCHAR,
+  bio TEXT,
+  created_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE SQL
+SECURITY DEFINER
+AS $$
+  INSERT INTO users_pt2024 (
+    email,
+    password_hash,
+    first_name,
+    last_name,
+    role,
+    is_active,
+    has_completed_onboarding,
+    company,
+    phone,
+    bio,
+    created_at,
+    updated_at
+  ) VALUES (
+    p_email,
+    p_password_hash,
+    p_first_name,
+    p_last_name,
+    COALESCE(p_role, 'financial_professional'),
+    TRUE,
+    FALSE,
+    p_company,
+    p_phone,
+    p_bio,
+    NOW(),
+    NOW()
+  )
+  RETURNING id,
+            email,
+            first_name,
+            last_name,
+            role,
+            is_active,
+            has_completed_onboarding,
+            profile_photo,
+            company,
+            phone,
+            bio,
+            created_at;
+$$;
+
+-- Allow anonymous execution for sign up
+GRANT EXECUTE ON FUNCTION public.create_user_account(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon;

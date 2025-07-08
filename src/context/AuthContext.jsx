@@ -256,20 +256,23 @@ export function AuthProvider({ children }) {
 
     try {
       console.log('Attempting login for:', email);
-      
+
+      if (!supabaseClient) {
+        console.error('Supabase client not initialized');
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return { success: false, error: 'Server configuration error' };
+      }
+
       // Find user in Supabase
       const { data: users, error } = await supabaseClient
-        .from(USERS_TABLE)
-        .select('*')
-        .eq('email', email)
-        .eq('is_active', true);
-        
+        .rpc('get_user_for_login', { p_email: email });
+
       if (error) {
         console.error('Login error:', error);
         dispatch({ type: 'SET_LOADING', payload: false });
         return { success: false, error: 'Database error. Please try again.' };
       }
-      
+
       if (!users || users.length === 0) {
         console.log('No user found with email:', email);
         dispatch({ type: 'SET_LOADING', payload: false });
@@ -882,7 +885,12 @@ export function AuthProvider({ children }) {
   const signUp = async (userData) => {
     try {
       console.log('Signing up new user:', userData.email);
-      
+
+      if (!supabaseClient) {
+        console.error('Supabase client not initialized');
+        return { success: false, error: 'Server configuration error' };
+      }
+
       // Check if email already exists
       const { data: existingUsers, error: checkError } = await supabaseClient
         .from(USERS_TABLE)
@@ -902,28 +910,20 @@ export function AuthProvider({ children }) {
       const defaultPassword = 'temp123';
       const passwordHash = await hashPassword(defaultPassword);
       
-      // Prepare user data
-      const dbUser = {
-        email: userData.email,
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        password_hash: passwordHash,
-        role: userData.role || 'financial_professional',
-        is_active: true,
-        has_completed_onboarding: false,
-        company: userData.company || '',
-        phone: userData.phone || '',
-        bio: userData.bio || '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      
-      // Insert into Supabase
-      const { data: newUser, error } = await supabaseClient
-        .from(USERS_TABLE)
-        .insert(dbUser)
-        .select()
-        .single();
+      // Insert via RPC to comply with RLS
+      const { data: newUser, error } = await supabaseClient.rpc(
+        'create_user_account',
+        {
+          p_email: userData.email,
+          p_password_hash: passwordHash,
+          p_first_name: userData.firstName,
+          p_last_name: userData.lastName,
+          p_role: userData.role || 'financial_professional',
+          p_company: userData.company || '',
+          p_phone: userData.phone || '',
+          p_bio: userData.bio || ''
+        }
+      );
         
       if (error) {
         console.error('Error creating user:', error);
