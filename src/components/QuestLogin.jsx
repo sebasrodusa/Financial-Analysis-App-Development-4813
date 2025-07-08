@@ -9,7 +9,7 @@ import { getQuestConfig } from '../config/questConfig';
 const { FiTrendingUp, FiArrowRight, FiShield, FiUsers, FiBarChart3 } = FiIcons;
 
 function QuestLogin() {
-  const [QuestLogin, setQuestLogin] = useState(null);
+  const [QuestLoginComponent, setQuestLoginComponent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -34,14 +34,14 @@ function QuestLogin() {
       try {
         const module = await import('@questlabs/react-sdk');
         if (module.QuestLogin) {
-          setQuestLogin(() => module.QuestLogin);
+          setQuestLoginComponent(() => module.QuestLogin);
         } else {
           console.warn('QuestLogin component not found in module');
-          setQuestLogin(null);
+          setQuestLoginComponent(null);
         }
       } catch (error) {
         console.warn('Error loading QuestLogin component:', error);
-        setQuestLogin(null);
+        setQuestLoginComponent(null);
       } finally {
         setIsLoading(false);
       }
@@ -143,9 +143,9 @@ function QuestLogin() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                 <span className="ml-3 text-gray-600">Loading login...</span>
               </div>
-            ) : QuestLogin ? (
+            ) : QuestLoginComponent ? (
               <div style={{ width: '100%', maxWidth: '400px' }}>
-                <QuestLogin
+                <QuestLoginComponent
                   onSubmit={handleLogin}
                   email={true}
                   google={false}
