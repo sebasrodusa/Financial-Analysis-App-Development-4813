@@ -119,6 +119,24 @@ const safeSetToStorage = (key, value) => {
   }
 };
 
+// Convert object keys from camelCase to snake_case
+const toSnakeCase = (obj = {}) =>
+  Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`),
+      value,
+    ])
+  );
+
+// Convert object keys from snake_case to camelCase
+const toCamelCase = (obj = {}) =>
+  Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      key.replace(/_([a-z])/g, (_, l) => l.toUpperCase()),
+      value,
+    ])
+  );
+
 export function ClientProvider({ children }) {
   const [state, dispatch] = useReducer(clientReducer, initialState);
   const { user } = useAuth();
@@ -150,9 +168,9 @@ export function ClientProvider({ children }) {
             const { data, error } = await supabaseClient
               .from(CLIENTS_TABLE)
               .select('*');
-              
+
             if (error) throw error;
-            return data || [];
+            return (data || []).map(toCamelCase);
           } catch (err) {
             console.warn('Error fetching clients:', err);
             return [];
@@ -164,9 +182,9 @@ export function ClientProvider({ children }) {
             const { data, error } = await supabaseClient
               .from(ANALYSES_TABLE)
               .select('*');
-              
+
             if (error) throw error;
-            return data || [];
+            return (data || []).map(toCamelCase);
           } catch (err) {
             console.warn('Error fetching analyses:', err);
             return [];
@@ -184,8 +202,8 @@ export function ClientProvider({ children }) {
           type: 'LOAD_DATA',
           payload: {
             clients: clients,
-            analyses: analyses
-          }
+            analyses: analyses,
+          },
         });
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -250,9 +268,10 @@ export function ClientProvider({ children }) {
       // If Supabase is available, try to save there first
       if (supabaseClient) {
         try {
+          const clientDb = toSnakeCase(clientWithId);
           const { data, error } = await supabaseClient
             .from(CLIENTS_TABLE)
-            .insert(clientWithId)
+            .insert(clientDb)
             .select()
             .single();
             
@@ -260,8 +279,9 @@ export function ClientProvider({ children }) {
             console.warn('Supabase insert failed, using localStorage:', error);
           } else {
             console.log('Client added to Supabase:', data);
-            dispatch({ type: 'ADD_CLIENT', payload: data });
-            return data;
+            const clientApp = toCamelCase(data);
+            dispatch({ type: 'ADD_CLIENT', payload: clientApp });
+            return clientApp;
           }
         } catch (supabaseError) {
           console.warn('Supabase operation failed:', supabaseError);
@@ -292,9 +312,10 @@ export function ClientProvider({ children }) {
       // If Supabase is available, try to update there first
       if (supabaseClient) {
         try {
+          const updatedDb = toSnakeCase(updatedData);
           const { data, error } = await supabaseClient
             .from(CLIENTS_TABLE)
-            .update(updatedData)
+            .update(updatedDb)
             .eq('id', clientData.id)
             .select()
             .single();
@@ -302,8 +323,9 @@ export function ClientProvider({ children }) {
           if (error) {
             console.warn('Supabase update failed, using localStorage:', error);
           } else {
-            dispatch({ type: 'UPDATE_CLIENT', payload: data });
-            return data;
+            const clientApp = toCamelCase(data);
+            dispatch({ type: 'UPDATE_CLIENT', payload: clientApp });
+            return clientApp;
           }
         } catch (supabaseError) {
           console.warn('Supabase operation failed:', supabaseError);
@@ -367,17 +389,19 @@ export function ClientProvider({ children }) {
       // If Supabase is available, try to save there first
       if (supabaseClient) {
         try {
+          const analysisDb = toSnakeCase(analysisWithId);
           const { data, error } = await supabaseClient
             .from(ANALYSES_TABLE)
-            .insert(analysisWithId)
+            .insert(analysisDb)
             .select()
             .single();
             
           if (error) {
             console.warn('Supabase insert failed, using localStorage:', error);
           } else {
-            dispatch({ type: 'ADD_ANALYSIS', payload: data });
-            return data;
+            const analysisApp = toCamelCase(data);
+            dispatch({ type: 'ADD_ANALYSIS', payload: analysisApp });
+            return analysisApp;
           }
         } catch (supabaseError) {
           console.warn('Supabase operation failed:', supabaseError);
@@ -408,9 +432,10 @@ export function ClientProvider({ children }) {
       // If Supabase is available, try to update there first
       if (supabaseClient) {
         try {
+          const updatedDb = toSnakeCase(updatedData);
           const { data, error } = await supabaseClient
             .from(ANALYSES_TABLE)
-            .update(updatedData)
+            .update(updatedDb)
             .eq('id', analysisData.id)
             .select()
             .single();
@@ -418,8 +443,9 @@ export function ClientProvider({ children }) {
           if (error) {
             console.warn('Supabase update failed, using localStorage:', error);
           } else {
-            dispatch({ type: 'UPDATE_ANALYSIS', payload: data });
-            return data;
+            const analysisApp = toCamelCase(data);
+            dispatch({ type: 'UPDATE_ANALYSIS', payload: analysisApp });
+            return analysisApp;
           }
         } catch (supabaseError) {
           console.warn('Supabase operation failed:', supabaseError);
