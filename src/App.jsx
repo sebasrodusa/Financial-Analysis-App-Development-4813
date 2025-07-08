@@ -186,9 +186,9 @@ const getQuestConfig = () => {
   try {
     if (typeof window === 'undefined') return null;
     const config = {
-      apiKey: 'k-01e20326-644b-41ae-a703-65bfe60fc6c1',
-      entityId: 'e-7a4dcfcd-535e-4d47-9fd2-11d2085767dd',
-      apiType: 'PRODUCTION'
+      apiKey: import.meta.env.VITE_QUEST_APIKEY,
+      entityId: import.meta.env.VITE_QUEST_ENTITYID,
+      apiType: import.meta.env.VITE_QUEST_API_TYPE || 'PRODUCTION'
     };
     
     // Validate config
