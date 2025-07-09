@@ -13,7 +13,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
 
@@ -23,5 +23,4 @@ function ProtectedRoute({ children, adminOnly = false }) {
 
   return children;
 }
-
 export default ProtectedRoute;
