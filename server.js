@@ -8,13 +8,22 @@ const { Pool } = pkg;
 
 dotenv.config();
 
-const pool = new Pool({
-  host: process.env.PGHOST,
-  port: Number(process.env.PGPORT),
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  database: process.env.PGDATABASE,
-});
+let pool;
+if (process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL) {
+  pool = new Pool({
+    connectionString:
+      process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  });
+} else {
+  pool = new Pool({
+    host: process.env.PGHOST,
+    port: Number(process.env.PGPORT),
+    user: process.env.PGUSER,
+    password: process.env.PGPASSWORD,
+    database: process.env.PGDATABASE,
+  });
+}
 
 const app = express();
 app.use(express.json());

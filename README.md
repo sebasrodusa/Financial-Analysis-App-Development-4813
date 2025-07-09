@@ -47,6 +47,10 @@ VITE_QUEST_USER_ID=your-quest-user-id
 VITE_QUEST_TOKEN=your-quest-token
 ```
 
+For database access, you can either set the individual `PGHOST`, `PGPORT`,
+`PGUSER`, `PGPASSWORD` and `PGDATABASE` variables or provide a single
+`NETLIFY_DATABASE_URL` (or `DATABASE_URL`) connection string.
+
 ## Database Setup
 
 1. Provision a Neon PostgreSQL database.
