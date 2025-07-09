@@ -30,12 +30,6 @@ export default function useApi() {
     signup: (data) =>
       request('/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
 
-    sendEmailCode: (email) =>
-      request('/auth/send-code', { method: 'POST', body: JSON.stringify({ email }) }),
-
-    verifyEmailCode: (email, code) =>
-      request('/auth/verify-code', { method: 'POST', body: JSON.stringify({ email, code }) }),
-
     // Users
     getUsers: () => request('/users'),
     createUser: (data) =>

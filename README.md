@@ -2,6 +2,8 @@
 
 ProsperTrack is a financial planning tool built with a React frontend, an Express backend using Clerk for authentication, and a Neon Postgres database.
 
+Email-based code verification has been removed; all sign-in flows now rely on Clerk's standard authentication.
+
 ## Backend
 
 The API defined in `server.js` uses Express and `@clerk/clerk-sdk-node` for user authentication. It connects to Postgres via `pg` and exposes endpoints for user, client and analysis management.
@@ -29,7 +31,6 @@ The frontend is built with React and Vite and styled with Tailwind CSS. Developm
 
 ## Database
 
-codex/update-.env.example-with-placeholders
 Replace the Clerk placeholders with your actual keys. Provide the real
 credentials through environment variables or your deployment settings.
 
@@ -38,9 +39,7 @@ For database access, you can either set the individual `PGHOST`, `PGPORT`,
 `NETLIFY_DATABASE_URL` (or `DATABASE_URL`) connection string.
 
 All persistent data lives in a Neon Postgres instance. Schema and seed data are defined in `migrations/initial.sql`.
-main
 
-codex/keep-initial.sql-as-authoritative-migration
 ## Database Setup
 
 1. Provision a Neon PostgreSQL database.
@@ -53,7 +52,6 @@ This script creates the required tables and seed demo users used by the app.
 ## Running the Application
 
 ## Installation
-main
 
 1. Clone the repository and install dependencies:
    ```bash
@@ -77,9 +75,9 @@ main
    PGUSER=postgres
    PGPASSWORD=password
    PGDATABASE=prospertrack
-   CLERK_PUBLISHABLE_KEY=pk_test_aW1tb3J0YWwtc3RhZy00MC5jbGVyay5hY2NvdW50cy5kZXYk
-   VITE_CLERK_PUBLISHABLE_KEY=pk_test_aW1tb3J0YWwtc3RhZy00MC5jbGVyay5hY2NvdW50cy5kZXYk
-   CLERK_SECRET_KEY=sk_test_UeVliIA2wI0NcdX8f7XqODUGopXhOQFUyfPjeQ73un
+   CLERK_PUBLISHABLE_KEY=your-clerk-publishable-key
+   VITE_CLERK_PUBLISHABLE_KEY=your-clerk-publishable-key
+   CLERK_SECRET_KEY=your-clerk-secret-key
    ```
 3. Provision a Neon Postgres database and run the migration script:
    ```bash
@@ -108,7 +106,6 @@ The optimized output is written to the `dist` directory.
 ## Project Structure
 
 ```
-codex/keep-initial.sql-as-authoritative-migration
 prospertrack/
 ├── public/               # Public assets
 ├── src/
@@ -135,3 +132,5 @@ prospertrack/
 
 ## License
 This project is proprietary software. All rights reserved.
+codex/remove-redundant-block-from-readme.md
+main
