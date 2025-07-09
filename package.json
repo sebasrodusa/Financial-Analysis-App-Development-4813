@@ -12,6 +12,7 @@
     "server": "node server.js"
   },
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^4.13.23",
     "@questlabs/react-sdk": "^2.1.9",
     "@react-pdf/renderer": "^3.1.14",
     "bcryptjs": "^3.0.2",
