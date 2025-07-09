@@ -1,6 +1,8 @@
 import { useAuth } from '@clerk/clerk-react';
 
-const API_URL = import.meta.env?.VITE_API_URL || '';
+// Default to the Render-hosted API if no environment variable is provided
+const API_URL =
+  import.meta.env?.VITE_API_URL || 'https://prospertrack-api.onrender.com';
 
 export default function useApi() {
   const { getToken } = useAuth();

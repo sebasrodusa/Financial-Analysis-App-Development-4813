@@ -61,7 +61,7 @@ This script creates the required tables and seed demo users used by the app.
    ```
 2. Create a `.env` file based on `.env.example` and configure the variables:
    ```bash
-   VITE_API_URL=http://localhost:3000
+   VITE_API_URL=https://prospertrack-api.onrender.com
    NETLIFY_DATABASE_URL=
    PGHOST=localhost
    PGPORT=5432
