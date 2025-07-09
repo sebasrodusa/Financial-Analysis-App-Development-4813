@@ -30,6 +30,40 @@ app.use(express.json());
 app.use(ClerkExpressWithAuth());
 const PORT = process.env.PORT || 3000;
 
+const allowedClientColumns = [
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'address',
+  'city',
+  'state',
+  'zip_code',
+  'date_of_birth',
+  'occupation',
+  'employer',
+  'marital_status',
+  'spouse_first_name',
+  'spouse_last_name',
+  'spouse_date_of_birth',
+  'spouse_occupation',
+  'spouse_employer',
+  'spouse_phone',
+  'spouse_email',
+  'children',
+];
+
+const allowedAnalysisColumns = [
+  'income',
+  'expenses',
+  'assets',
+  'liabilities',
+  'financial_goals',
+  'life_insurance',
+  'net_income',
+  'net_worth',
+];
+
 // Authentication
 app.post('/auth/signup', async (req, res) => {
   const { email, password, firstName, lastName } = req.body;
@@ -203,6 +237,10 @@ app.put('/clients/:id', async (req, res) => {
   const { id } = req.params;
   const fields = req.body;
   const keys = Object.keys(fields);
+  const invalid = keys.filter((k) => !allowedClientColumns.includes(k));
+  if (invalid.length) {
+    return res.status(400).json({ error: `Invalid fields: ${invalid.join(', ')}` });
+  }
   const values = Object.values(fields);
   const set = keys.map((k, i) => `${k}=$${i + 1}`).join(', ');
   try {
@@ -267,6 +305,10 @@ app.put('/analyses/:id', async (req, res) => {
   const { id } = req.params;
   const fields = req.body;
   const keys = Object.keys(fields);
+  const invalid = keys.filter((k) => !allowedAnalysisColumns.includes(k));
+  if (invalid.length) {
+    return res.status(400).json({ error: `Invalid fields: ${invalid.join(', ')}` });
+  }
   const values = Object.values(fields);
   const set = keys.map((k, i) => `${k}=$${i + 1}`).join(', ');
   try {
