@@ -55,10 +55,10 @@ For database access, you can either set the individual `PGHOST`, `PGPORT`,
 
 1. Provision a Neon PostgreSQL database.
 
-2. Run the migration scripts located in the `migrations` directory using `psql` or your preferred tool:
+2. All tables, policies and demo data are defined in `migrations/initial.sql`. Run this migration using `psql` or your preferred tool:
    - `psql $DATABASE_URL -f migrations/initial.sql`
 
-These scripts create the required tables and seed demo users used by the app.
+This script creates the required tables and seed demo users used by the app.
 
 ## Running the Application
 
@@ -110,7 +110,8 @@ prospertrack/
 │   ├── main.jsx          # Entry point
 │   └── index.css         # Global styles
 ├── .env.example          # Example environment variables
-├── database-setup.sql    # Database setup script
+├── migrations/
+│   └── initial.sql       # Database migration script
 ├── package.json          # Dependencies and scripts
 └── README.md             # Project documentation
 ```
@@ -122,5 +123,4 @@ prospertrack/
 - Row-level security is implemented in the database
 
 ## License
-
 This project is proprietary software. All rights reserved.
