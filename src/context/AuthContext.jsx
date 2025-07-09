@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import api from '../lib/api';
+import useApi from '../lib/api';
 
 const AuthContext = createContext();
 
@@ -25,6 +25,7 @@ function reducer(state, action) {
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const api = useApi();
 
   useEffect(() => {
     const saved = localStorage.getItem('currentUser');
