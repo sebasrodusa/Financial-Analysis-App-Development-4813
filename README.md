@@ -14,10 +14,10 @@ ProsperTrack™ is a comprehensive financial analysis platform designed for fina
 ## Tech Stack
 
 - **Frontend**: React, Tailwind CSS, Framer Motion
-- **Database**: Supabase (PostgreSQL)
+- **Database**: Neon PostgreSQL
 - **PDF Generation**: React-PDF
 - **Charts**: ECharts
-- **Authentication**: Custom authentication with Supabase
+- **Authentication**: Custom authentication via Express backend
 
 ## Installation
 
@@ -36,8 +36,7 @@ npm install
 
 3. Create a `.env` file in the root directory based on `.env.example` and add your credentials:
 ```
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key-here
+VITE_API_URL=http://localhost:3000
 
 VITE_QUEST_APIKEY=your-quest-api-key
 VITE_QUEST_ENTITYID=your-quest-entity-id
@@ -50,17 +49,12 @@ VITE_QUEST_TOKEN=your-quest-token
 
 ## Database Setup
 
-1. Create a new Supabase project at [supabase.com](https://supabase.com)
+1. Provision a Neon PostgreSQL database.
 
-2. Run the database setup script (`database-setup.sql`) in the Supabase SQL editor to create the required tables. Make sure you execute the updated script so the `anon` role receives the proper schema permissions. The script now includes a helper table `admin_users` used for admin checks to avoid row level security recursion:
-   - Go to your Supabase project dashboard
-   - Navigate to "SQL Editor"
-   - Create a "New query"
-  - Copy and paste the contents of `database-setup.sql`
-  - Run the query
-  - The script creates an RPC function `get_user_for_login(email)` which
-    exposes only essential user fields and is callable by anonymous users for
-    login verification.
+2. Run the migration scripts located in the `migrations` directory using `psql` or your preferred tool:
+   - `psql $DATABASE_URL -f migrations/initial.sql`
+
+These scripts create the required tables and seed demo users used by the app.
 
 ## Running the Application
 
