@@ -18,47 +18,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import './App.css';
 
-// Lazy load optional components with proper error handling
-const QuestLogin = React.lazy(() => 
-  import('./components/QuestLogin')
-    .catch(() => ({
-      default: () => (
-        <div className="p-8 bg-white rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold text-red-600 mb-4">Quest Login Component Unavailable</h2>
-          <p className="text-gray-700 mb-4">The Quest Login component could not be loaded. Please use standard login instead.</p>
-          <a href="#/login" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            Go to Standard Login
-          </a>
-        </div>
-      )
-    }))
-);
-
-const QuestOnboarding = React.lazy(() => 
-  import('./components/QuestOnboarding')
-    .catch(() => ({
-      default: () => (
-        <div className="p-8 bg-white rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold text-red-600 mb-4">Onboarding Component Unavailable</h2>
-          <p className="text-gray-700 mb-4">The onboarding component could not be loaded. You will be redirected to the dashboard.</p>
-          <a href="#/dashboard" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            Go to Dashboard
-          </a>
-        </div>
-      )
-    }))
-);
-
-// Dynamically import Quest components with proper error handling
-const QuestProvider = React.lazy(() => 
-  import('@questlabs/react-sdk')
-    .then(module => ({
-      default: module.QuestProvider || (({children}) => children)
-    }))
-    .catch(() => ({
-      default: ({children}) => children // Fallback component
-    }))
-);
 
 // Custom loading component
 const LoadingScreen = () => (
@@ -113,14 +72,6 @@ function AppContent() {
     return <LoadingScreen />;
   }
 
-  // Show onboarding if user needs it
-  if (isAuthenticated() && needsOnboarding) {
-    return (
-      <React.Suspense fallback={<LoadingScreen />}>
-        <QuestOnboarding />
-      </React.Suspense>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -136,20 +87,6 @@ function AppContent() {
           <Route path="/signup" element={isAuthenticated() ? <Navigate to="/dashboard" replace /> : <SignUp />} />
           <Route path="/forgot-password" element={isAuthenticated() ? <Navigate to="/dashboard" replace /> : <ForgotPassword />} />
           <Route path="/reset-password" element={isAuthenticated() ? <Navigate to="/dashboard" replace /> : <ResetPassword />} />
-          <Route path="/quest-login" element={isAuthenticated() ? (
-            <Navigate to="/dashboard" replace />
-          ) : (
-            <React.Suspense fallback={<LoadingScreen />}>
-              <QuestLogin />
-            </React.Suspense>
-          )} />
-          <Route path="/onboarding" element={isAuthenticated() ? (
-            <React.Suspense fallback={<LoadingScreen />}>
-              <QuestOnboarding />
-            </React.Suspense>
-          ) : (
-            <Navigate to="/login" replace />
-          )} />
 
           {/* Protected Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -181,57 +118,17 @@ function AppContent() {
   );
 }
 
-// Quest configuration with safe error handling
-const getQuestConfig = () => {
-  try {
-    if (typeof window === 'undefined') return null;
-    const config = {
-      apiKey: import.meta.env.VITE_QUEST_APIKEY,
-      entityId: import.meta.env.VITE_QUEST_ENTITYID,
-      apiType: import.meta.env.VITE_QUEST_API_TYPE || 'PRODUCTION'
-    };
-    
-    // Validate config
-    if (!config.apiKey || !config.entityId) {
-      console.warn('Quest config incomplete');
-      return null;
-    }
-    
-    return config;
-  } catch (error) {
-    console.warn('Error getting Quest config:', error);
-    return null;
-  }
-};
-
 function App() {
-  const questConfig = getQuestConfig();
-
   return (
     <ErrorBoundary>
-      <React.Suspense fallback={<LoadingScreen />}>
-        {questConfig ? (
-          <QuestProvider {...questConfig}>
-            <AuthProvider>
-              <ClientProvider>
-                <Router>
-                  <AppContent />
-                </Router>
-              </ClientProvider>
-            </AuthProvider>
-          </QuestProvider>
-        ) : (
-          <AuthProvider>
-            <ClientProvider>
-              <Router>
-                <AppContent />
-              </Router>
-            </ClientProvider>
-          </AuthProvider>
-        )}
-      </React.Suspense>
+      <AuthProvider>
+        <ClientProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </ClientProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
-
 export default App;

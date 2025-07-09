@@ -6,7 +6,6 @@ import SafeIcon from '../common/SafeIcon';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import ClientModal from './ClientModal';
-import GetStartedModal from './GetStartedModal';
 
 const { FiPlus, FiUser, FiTrendingUp, FiFileText, FiCalculator, FiCreditCard, FiPlayCircle } = FiIcons;
 
@@ -14,7 +13,6 @@ function Dashboard() {
   const { state, addClient, deleteClient } = useClient();
   const { user, isAdmin } = useAuth();
   const [showClientModal, setShowClientModal] = useState(false);
-  const [showGetStarted, setShowGetStarted] = useState(false);
 
   const handleAddClient = async (clientData) => {
     const newClient = {
@@ -65,14 +63,6 @@ function Dashboard() {
                 </p>
               </div>
               <div className="flex space-x-4">
-                {/* Get Started Button */}
-                <button
-                  onClick={() => setShowGetStarted(true)}
-                  className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <SafeIcon icon={FiPlayCircle} />
-                  <span>Get Started</span>
-                </button>
 
                 {isAdmin() && (
                   <Link
@@ -287,14 +277,7 @@ function Dashboard() {
           />
         )}
       </div>
-
-      {/* GetStarted Modal */}
-      <GetStartedModal 
-        isOpen={showGetStarted} 
-        onClose={() => setShowGetStarted(false)} 
-      />
     </>
   );
 }
-
 export default Dashboard;

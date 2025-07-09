@@ -62,13 +62,6 @@ This script creates the required tables and seed demo users used by the app.
 2. Create a `.env` file based on `.env.example` and configure the variables:
    ```bash
    VITE_API_URL=http://localhost:3000
-   VITE_QUEST_APIKEY=your-quest-api-key
-   VITE_QUEST_ENTITYID=your-quest-entity-id
-   VITE_QUEST_API_TYPE=PRODUCTION
-   VITE_QUEST_ONBOARDING_QUESTID=your-onboarding-quest-id
-   VITE_GET_STARTED_QUESTID=your-get-started-quest-id
-   VITE_QUEST_USER_ID=your-quest-user-id
-   VITE_QUEST_TOKEN=your-quest-token
    NETLIFY_DATABASE_URL=
    PGHOST=localhost
    PGPORT=5432

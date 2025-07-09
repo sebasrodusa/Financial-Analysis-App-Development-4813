@@ -30,8 +30,7 @@ export default defineConfig({
     global: 'globalThis',
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
-    exclude: ['@questlabs/react-sdk']
+    include: ['react', 'react-dom', 'react-router-dom']
   },
   server: {
     host: true, // Listen on all addresses
@@ -41,5 +40,4 @@ export default defineConfig({
   preview: {
     port: 4173,
     host: true,
-  }
-});
+  }});
