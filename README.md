@@ -2,6 +2,8 @@
 
 ProsperTrack is a financial planning tool built with a React frontend, an Express backend using Clerk for authentication, and a Neon Postgres database.
 
+Email-based code verification has been removed; all sign-in flows now rely on Clerk's standard authentication.
+
 ## Backend
 
 The API defined in `server.js` uses Express and `@clerk/clerk-sdk-node` for user authentication. It connects to Postgres via `pg` and exposes endpoints for user, client and analysis management.

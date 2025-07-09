@@ -136,29 +136,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const sendEmailCode = async (email) => {
-    dispatch({ type: 'LOADING', payload: true });
-    try {
-      await api.sendEmailCode(email);
-      dispatch({ type: 'LOADING', payload: false });
-      return { success: true };
-    } catch (err) {
-      dispatch({ type: 'LOADING', payload: false });
-      return { success: false, error: err.message };
-    }
-  };
-
-  const verifyEmailCode = async (email, code) => {
-    dispatch({ type: 'LOADING', payload: true });
-    try {
-      const data = await api.verifyEmailCode(email, code);
-      if (data.user) dispatch({ type: 'SET_USER', payload: data.user });
-      return { success: true };
-    } catch (err) {
-      dispatch({ type: 'LOADING', payload: false });
-      return { success: false, error: err.message };
-    }
-  };
 
 return (
   <AuthContext.Provider
@@ -176,8 +153,6 @@ return (
       needsOnboarding,      // from codex branch
       completeOnboarding,   // from codex branch
       toggleUserStatus,     // from codex branch
-      sendEmailCode,        // from codex branch
-      verifyEmailCode,      // from codex branch
     }}
   >
     {children}
