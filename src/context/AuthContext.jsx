@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 import useApi from '../lib/api'; // Keep useApi for abstraction
 
@@ -34,18 +33,6 @@ export function AuthProvider({ children }) {
 
   // You can combine logic here using Clerk and custom API
   // More logic will go here, depending on what functions you define in context
-
-  return (
-    <AuthContext.Provider value={{
-      ...state,
-      // Add your functions like login, logout, fetchUsers here
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-
   useEffect(() => {
     if (!isLoaded) {
       dispatch({ type: 'LOADING', payload: true });
@@ -124,7 +111,6 @@ export function AuthProvider({ children }) {
     await fetchUsers();
   };
 
-  const isAdmin = () => state.user?.role === 'admin';
 
   const needsOnboarding = state.user ? !state.user.hasCompletedOnboarding : false;
 
@@ -196,10 +182,9 @@ return (
   >
     {children}
   </AuthContext.Provider>
-);
-
   );
 }
 
-export function useAuth() {  return useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthContext);
 }
