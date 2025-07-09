@@ -31,7 +31,20 @@ The frontend is built with React and Vite and styled with Tailwind CSS. Developm
 
 All persistent data lives in a Neon Postgres instance. Schema and seed data are defined in `migrations/initial.sql`.
 
+codex/keep-initial.sql-as-authoritative-migration
+## Database Setup
+
+1. Provision a Neon PostgreSQL database.
+
+2. All tables, policies and demo data are defined in `migrations/initial.sql`. Run this migration using `psql` or your preferred tool:
+   - `psql $DATABASE_URL -f migrations/initial.sql`
+
+This script creates the required tables and seed demo users used by the app.
+
+## Running the Application
+
 ## Installation
+main
 
 1. Clone the repository and install dependencies:
    ```bash
@@ -86,6 +99,34 @@ The optimized output is written to the `dist` directory.
 ## Project Structure
 
 ```
+codex/keep-initial.sql-as-authoritative-migration
+prospertrack/
+├── public/               # Public assets
+├── src/
+│   ├── common/           # Common components and utilities
+│   ├── components/       # React components
+│   ├── context/          # Context providers
+│   ├── lib/              # Library integrations
+│   ├── config/           # Configuration files
+│   ├── App.jsx           # Main App component
+│   ├── main.jsx          # Entry point
+│   └── index.css         # Global styles
+├── .env.example          # Example environment variables
+├── migrations/
+│   └── initial.sql       # Database migration script
+├── package.json          # Dependencies and scripts
+└── README.md             # Project documentation
+```
+
+## Security Notes
+
+- This application uses bcryptjs for password hashing
+- Environment variables are used for sensitive configuration
+- Row-level security is implemented in the database
+
+## License
+This project is proprietary software. All rights reserved.
+
 /               project root
 ├── server.js            Express API
 ├── migrations/          SQL migration scripts
@@ -101,3 +142,4 @@ The optimized output is written to the `dist` directory.
 ├── package.json
 └── vite.config.js
 ```
+main
