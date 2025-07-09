@@ -21,6 +21,10 @@ export const api = {
   createUser: (data) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
   updateUser: (id, data) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
+  sendEmailCode: (email) =>
+    request('/auth/send-code', { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyEmailCode: (email, code) =>
+    request('/auth/verify-code', { method: 'POST', body: JSON.stringify({ email, code }) }),
   getClients: () => request('/clients'),
   createClient: (data) => request('/clients', { method: 'POST', body: JSON.stringify(data) }),
   updateClient: (id, data) => request(`/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
