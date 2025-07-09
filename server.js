@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import pkg from 'pg';
 import bcrypt from 'bcryptjs';
+import { ClerkExpressRequireAuth, ClerkExpressWithAuth } from '@clerk/clerk-sdk-node';
 
 const { Pool } = pkg;
 
@@ -17,6 +18,7 @@ const pool = new Pool({
 
 const app = express();
 app.use(express.json());
+app.use(ClerkExpressWithAuth());
 const PORT = process.env.PORT || 3000;
 
 // Authentication
@@ -56,6 +58,7 @@ app.post('/auth/login', async (req, res) => {
 });
 
 // Users CRUD
+app.use('/users', ClerkExpressRequireAuth());
 app.get('/users', async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -112,9 +115,11 @@ app.delete('/users/:id', async (req, res) => {
 });
 
 // Clients CRUD
+app.use('/clients', ClerkExpressRequireAuth());
 app.get('/clients', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM clients');
+    const { userId } = req.auth;
+    const { rows } = await pool.query('SELECT * FROM clients WHERE user_id=$1', [userId]);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -148,13 +153,14 @@ app.post('/clients', async (req, res) => {
     children,
   } = req.body;
   try {
+    const userId = user_id || req.auth.userId;
     const { rows } = await pool.query(
       `INSERT INTO clients (id,user_id,first_name,last_name,email,phone,address,city,state,zip_code,date_of_birth,occupation,employer,marital_status,spouse_first_name,spouse_last_name,spouse_date_of_birth,spouse_occupation,spouse_employer,spouse_phone,spouse_email,children)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
        RETURNING *`,
       [
         id,
-        user_id,
+        userId,
         first_name,
         last_name,
         email,
@@ -213,9 +219,16 @@ app.delete('/clients/:id', async (req, res) => {
 });
 
 // Analyses CRUD
+app.use('/analyses', ClerkExpressRequireAuth());
 app.get('/analyses', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM financial_analyses');
+    const { userId } = req.auth;
+    const { rows } = await pool.query(
+      `SELECT fa.* FROM financial_analyses fa
+       JOIN clients c ON fa.client_id = c.id
+       WHERE c.user_id = $1`,
+      [userId]
+    );
     res.json(rows);
   } catch (err) {
     console.error(err);
