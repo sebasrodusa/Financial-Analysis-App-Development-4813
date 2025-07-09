@@ -88,8 +88,75 @@ export function AuthProvider({ children }) {
     await fetchUsers();
   };
 
+  const isAdmin = () => state.user?.role === 'admin';
+
+  const needsOnboarding = state.user ? !state.user.hasCompletedOnboarding : false;
+
+  const completeOnboarding = async () => {
+    if (!state.user) return;
+    try {
+      const data = await api.updateUser(state.user.id, { hasCompletedOnboarding: true });
+      dispatch({ type: 'SET_USER', payload: { ...state.user, ...data, hasCompletedOnboarding: true } });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleUserStatus = async (id) => {
+    try {
+      const user = state.users.find(u => u.id === id);
+      const data = await api.updateUser(id, { isActive: !user.isActive });
+      await fetchUsers();
+      return data;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  };
+
+  const sendEmailCode = async (email) => {
+    dispatch({ type: 'LOADING', payload: true });
+    try {
+      await api.sendEmailCode(email);
+      dispatch({ type: 'LOADING', payload: false });
+      return { success: true };
+    } catch (err) {
+      dispatch({ type: 'LOADING', payload: false });
+      return { success: false, error: err.message };
+    }
+  };
+
+  const verifyEmailCode = async (email, code) => {
+    dispatch({ type: 'LOADING', payload: true });
+    try {
+      const data = await api.verifyEmailCode(email, code);
+      if (data.user) dispatch({ type: 'SET_USER', payload: data.user });
+      return { success: true };
+    } catch (err) {
+      dispatch({ type: 'LOADING', payload: false });
+      return { success: false, error: err.message };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ ...state, login, signUp, logout, fetchUsers, addUser, updateUser, deleteUser }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        login,
+        signUp,
+        logout,
+        fetchUsers,
+        addUser,
+        updateUser,
+        deleteUser,
+        isAdmin,
+        needsOnboarding,
+        completeOnboarding,
+        toggleUserStatus,
+        sendEmailCode,
+        verifyEmailCode,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
