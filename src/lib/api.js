@@ -2,7 +2,7 @@ import { useAuth } from '@clerk/clerk-react';
 
 const API_URL = import.meta.env?.VITE_API_URL || '';
 
-export function useApi() {
+export default function useApi() {
   const { getToken } = useAuth();
 
   async function request(path, options = {}) {
@@ -22,49 +22,47 @@ export function useApi() {
     return res.json().catch(() => ({}));
   }
 
-import { request } from './request'; // or wherever your request function is defined
+  const api = {
+    // Auth
+    login: (email, password) =>
+      request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
 
-export const api = {
-  // Auth
-  login: (email, password) =>
-    request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    signup: (data) =>
+      request('/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
 
-  signup: (data) =>
-    request('/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
+    sendEmailCode: (email) =>
+      request('/auth/send-code', { method: 'POST', body: JSON.stringify({ email }) }),
 
-  sendEmailCode: (email) =>
-    request('/auth/send-code', { method: 'POST', body: JSON.stringify({ email }) }),
+    verifyEmailCode: (email, code) =>
+      request('/auth/verify-code', { method: 'POST', body: JSON.stringify({ email, code }) }),
 
-  verifyEmailCode: (email, code) =>
-    request('/auth/verify-code', { method: 'POST', body: JSON.stringify({ email, code }) }),
+    // Users
+    getUsers: () => request('/users'),
+    createUser: (data) =>
+      request('/users', { method: 'POST', body: JSON.stringify(data) }),
+    updateUser: (id, data) =>
+      request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteUser: (id) =>
+      request(`/users/${id}`, { method: 'DELETE' }),
 
-  // Users
-  getUsers: () => request('/users'),
-  createUser: (data) =>
-    request('/users', { method: 'POST', body: JSON.stringify(data) }),
-  updateUser: (id, data) =>
-    request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteUser: (id) =>
-    request(`/users/${id}`, { method: 'DELETE' }),
+    // Clients
+    getClients: () => request('/clients'),
+    createClient: (data) =>
+      request('/clients', { method: 'POST', body: JSON.stringify(data) }),
+    updateClient: (id, data) =>
+      request(`/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteClient: (id) =>
+      request(`/clients/${id}`, { method: 'DELETE' }),
 
-  // Clients
-  getClients: () => request('/clients'),
-  createClient: (data) =>
-    request('/clients', { method: 'POST', body: JSON.stringify(data) }),
-  updateClient: (id, data) =>
-    request(`/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteClient: (id) =>
-    request(`/clients/${id}`, { method: 'DELETE' }),
+    // Analyses
+    getAnalyses: () => request('/analyses'),
+    createAnalysis: (data) =>
+      request('/analyses', { method: 'POST', body: JSON.stringify(data) }),
+    updateAnalysis: (id, data) =>
+      request(`/analyses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteAnalysis: (id) =>
+      request(`/analyses/${id}`, { method: 'DELETE' }),
+  };
 
-  // Analyses
-  getAnalyses: () => request('/analyses'),
-  createAnalysis: (data) =>
-    request('/analyses', { method: 'POST', body: JSON.stringify(data) }),
-  updateAnalysis: (id, data) =>
-    request(`/analyses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteAnalysis: (id) =>
-    request(`/analyses/${id}`, { method: 'DELETE' }),
-};
-
-
-export default useApi;
+  return api;
+}
