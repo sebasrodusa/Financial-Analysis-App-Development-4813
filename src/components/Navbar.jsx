@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
-import GetStartedModal from './GetStartedModal';
 import { UserButton } from '@clerk/clerk-react';
 
 const { FiHome, FiUsers, FiBarChart3, FiSettings, FiShield, FiBriefcase, FiMenu, FiX, FiPlayCircle, FiTrendingUp } = FiIcons;
@@ -12,7 +11,6 @@ function Navbar() {
   const { user, isAdmin } = useAuth();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showGetStarted, setShowGetStarted] = useState(false);
 
   const navigationItems = [
     { path: '/dashboard', label: 'Dashboard', icon: FiHome, allowedRoles: ['admin', 'financial_professional'] },
@@ -67,14 +65,6 @@ function Navbar() {
                 </Link>
               ))}
 
-              {/* Get Started Button */}
-              <button
-                onClick={() => setShowGetStarted(true)}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors"
-              >
-                <SafeIcon icon={FiPlayCircle} className="text-lg" />
-                <span className="font-medium">Get Started</span>
-              </button>
             </div>
 
             {/* User Menu */}
@@ -111,26 +101,12 @@ function Navbar() {
                 ))}
 
                 {/* Mobile Get Started Button */}
-                <button
-                  onClick={() => {
-                    setShowGetStarted(true);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="flex items-center space-x-3 px-4 py-3 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors"
-                >
-                  <SafeIcon icon={FiPlayCircle} className="text-lg" />
-                  <span className="font-medium">Get Started</span>
-                </button>
 
               </div>
             </div>
           )}
         </div>
       </nav>
-
-      {/* GetStarted Modal */}
-      <GetStartedModal isOpen={showGetStarted} onClose={() => setShowGetStarted(false)} />
-
     </>
   );
 }
