@@ -114,7 +114,7 @@ function AppContent() {
   }
 
   // Show onboarding if user needs it
-  if (isAuthenticated && needsOnboarding) {
+  if (isAuthenticated() && needsOnboarding) {
     return (
       <React.Suspense fallback={<LoadingScreen />}>
         <QuestOnboarding />
@@ -124,7 +124,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {isAuthenticated && <Navbar />}
+      {isAuthenticated() && <Navbar />}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -132,18 +132,18 @@ function AppContent() {
       >
         <Routes>
           {/* Public Routes */}
-          <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
-          <Route path="/signup" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignUp />} />
-          <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPassword />} />
-          <Route path="/reset-password" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ResetPassword />} />
-          <Route path="/quest-login" element={isAuthenticated ? (
+          <Route path="/login" element={isAuthenticated() ? <Navigate to="/dashboard" replace /> : <Login />} />
+          <Route path="/signup" element={isAuthenticated() ? <Navigate to="/dashboard" replace /> : <SignUp />} />
+          <Route path="/forgot-password" element={isAuthenticated() ? <Navigate to="/dashboard" replace /> : <ForgotPassword />} />
+          <Route path="/reset-password" element={isAuthenticated() ? <Navigate to="/dashboard" replace /> : <ResetPassword />} />
+          <Route path="/quest-login" element={isAuthenticated() ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <React.Suspense fallback={<LoadingScreen />}>
               <QuestLogin />
             </React.Suspense>
           )} />
-          <Route path="/onboarding" element={isAuthenticated ? (
+          <Route path="/onboarding" element={isAuthenticated() ? (
             <React.Suspense fallback={<LoadingScreen />}>
               <QuestOnboarding />
             </React.Suspense>
@@ -161,7 +161,7 @@ function AppContent() {
           <Route path="/debt-stacking" element={<ProtectedRoute><DebtStackingCalculator /></ProtectedRoute>} />
 
           {/* Default redirect */}
-          <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
+          <Route path="/" element={<Navigate to={isAuthenticated() ? "/dashboard" : "/login"} replace />} />
           
           {/* Catch-all for unknown routes */}
           <Route path="*" element={

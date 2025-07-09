@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 import api from '../lib/api';
 
 const AuthContext = createContext();
@@ -25,16 +26,28 @@ function reducer(state, action) {
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useClerkAuth();
 
   useEffect(() => {
-    const saved = localStorage.getItem('currentUser');
-    if (saved) dispatch({ type: 'SET_USER', payload: JSON.parse(saved) });
-  }, []);
+    if (!isLoaded) {
+      dispatch({ type: 'LOADING', payload: true });
+      return;
+    }
 
-  useEffect(() => {
-    if (state.user) localStorage.setItem('currentUser', JSON.stringify(state.user));
-    else localStorage.removeItem('currentUser');
-  }, [state.user]);
+    if (isSignedIn && user) {
+      const mappedUser = {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.primaryEmailAddress?.emailAddress || '',
+        role: user.publicMetadata?.role || 'financial_professional',
+      };
+      dispatch({ type: 'SET_USER', payload: mappedUser });
+    } else {
+      dispatch({ type: 'SET_USER', payload: null });
+    }
+  }, [isLoaded, isSignedIn, user]);
 
   const login = async (email, password) => {
     dispatch({ type: 'LOADING', payload: true });
@@ -60,7 +73,13 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => dispatch({ type: 'SET_USER', payload: null });
+  const logout = async () => {
+    await signOut();
+    dispatch({ type: 'SET_USER', payload: null });
+  };
+
+  const isAuthenticated = () => state.isAuthenticated;
+  const isAdmin = () => state.user?.role === 'admin' || state.user?.publicMetadata?.role === 'admin';
 
   const fetchUsers = async () => {
     try {
@@ -89,7 +108,18 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, signUp, logout, fetchUsers, addUser, updateUser, deleteUser }}>
+    <AuthContext.Provider value={{
+      ...state,
+      login,
+      signUp,
+      logout,
+      fetchUsers,
+      addUser,
+      updateUser,
+      deleteUser,
+      isAuthenticated,
+      isAdmin,
+    }}>
       {children}
     </AuthContext.Provider>
   );
