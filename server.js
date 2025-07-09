@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import pkg from 'pg';
 import bcrypt from 'bcryptjs';
+import cors from 'cors';
 import { ClerkExpressRequireAuth, ClerkExpressWithAuth } from '@clerk/clerk-sdk-node';
 
 const { Pool } = pkg;
@@ -27,6 +28,10 @@ if (process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL) {
 
 const app = express();
 app.use(express.json());
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+  : undefined;
+app.use(allowedOrigins ? cors({ origin: allowedOrigins }) : cors());
 app.use(ClerkExpressWithAuth());
 const PORT = process.env.PORT || 3000;
 
