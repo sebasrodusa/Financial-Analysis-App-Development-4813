@@ -29,7 +29,16 @@ The frontend is built with React and Vite and styled with Tailwind CSS. Developm
 
 ## Database
 
+codex/update-.env.example-with-placeholders
+Replace the Clerk placeholders with your actual keys. Provide the real
+credentials through environment variables or your deployment settings.
+
+For database access, you can either set the individual `PGHOST`, `PGPORT`,
+`PGUSER`, `PGPASSWORD` and `PGDATABASE` variables or provide a single
+`NETLIFY_DATABASE_URL` (or `DATABASE_URL`) connection string.
+
 All persistent data lives in a Neon Postgres instance. Schema and seed data are defined in `migrations/initial.sql`.
+main
 
 codex/keep-initial.sql-as-authoritative-migration
 ## Database Setup
