@@ -47,6 +47,9 @@ VITE_QUEST_USER_ID=your-quest-user-id
 VITE_QUEST_TOKEN=your-quest-token
 ```
 
+Replace the Clerk placeholders with your actual keys. Provide the real
+credentials through environment variables or your deployment settings.
+
 For database access, you can either set the individual `PGHOST`, `PGPORT`,
 `PGUSER`, `PGPASSWORD` and `PGDATABASE` variables or provide a single
 `NETLIFY_DATABASE_URL` (or `DATABASE_URL`) connection string.
