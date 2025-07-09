@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
-import api from '../lib/api';
+import useApi from '../lib/api'; // Keep useApi for abstraction
 
 const AuthContext = createContext();
 
@@ -26,8 +27,24 @@ function reducer(state, action) {
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useClerkAuth();
+  const api = useApi(); // From codex branch
+
+  const { isLoaded, isSignedIn, user } = useUser(); // From main
+  const { signOut } = useClerkAuth(); // From main
+
+  // You can combine logic here using Clerk and custom API
+  // More logic will go here, depending on what functions you define in context
+
+  return (
+    <AuthContext.Provider value={{
+      ...state,
+      // Add your functions like login, logout, fetchUsers here
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
 
   useEffect(() => {
     if (!isLoaded) {

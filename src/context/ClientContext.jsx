@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import api from '../lib/api';
+import useApi from '../lib/api';
 
 const ClientContext = createContext();
 
@@ -24,6 +24,7 @@ function reducer(state, action) {
 export function ClientProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { user } = useAuth();
+  const api = useApi();
 
   const loadData = async () => {
     dispatch({ type: 'LOADING', payload: true });
