@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import useApi from '../lib/api';
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import useApi from '../lib/api'; // Keep useApi for abstraction
 
 const AuthContext = createContext();
 
@@ -25,17 +27,44 @@ function reducer(state, action) {
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const api = useApi();
+  const api = useApi(); // From codex branch
+
+  const { isLoaded, isSignedIn, user } = useUser(); // From main
+  const { signOut } = useClerkAuth(); // From main
+
+  // You can combine logic here using Clerk and custom API
+  // More logic will go here, depending on what functions you define in context
+
+  return (
+    <AuthContext.Provider value={{
+      ...state,
+      // Add your functions like login, logout, fetchUsers here
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
 
   useEffect(() => {
-    const saved = localStorage.getItem('currentUser');
-    if (saved) dispatch({ type: 'SET_USER', payload: JSON.parse(saved) });
-  }, []);
+    if (!isLoaded) {
+      dispatch({ type: 'LOADING', payload: true });
+      return;
+    }
 
-  useEffect(() => {
-    if (state.user) localStorage.setItem('currentUser', JSON.stringify(state.user));
-    else localStorage.removeItem('currentUser');
-  }, [state.user]);
+    if (isSignedIn && user) {
+      const mappedUser = {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.primaryEmailAddress?.emailAddress || '',
+        role: user.publicMetadata?.role || 'financial_professional',
+      };
+      dispatch({ type: 'SET_USER', payload: mappedUser });
+    } else {
+      dispatch({ type: 'SET_USER', payload: null });
+    }
+  }, [isLoaded, isSignedIn, user]);
 
   const login = async (email, password) => {
     dispatch({ type: 'LOADING', payload: true });
@@ -61,7 +90,13 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => dispatch({ type: 'SET_USER', payload: null });
+  const logout = async () => {
+    await signOut();
+    dispatch({ type: 'SET_USER', payload: null });
+  };
+
+  const isAuthenticated = () => state.isAuthenticated;
+  const isAdmin = () => state.user?.role === 'admin' || state.user?.publicMetadata?.role === 'admin';
 
   const fetchUsers = async () => {
     try {
@@ -89,10 +124,80 @@ export function AuthProvider({ children }) {
     await fetchUsers();
   };
 
-  return (
-    <AuthContext.Provider value={{ ...state, login, signUp, logout, fetchUsers, addUser, updateUser, deleteUser }}>
-      {children}
-    </AuthContext.Provider>
+  const isAdmin = () => state.user?.role === 'admin';
+
+  const needsOnboarding = state.user ? !state.user.hasCompletedOnboarding : false;
+
+  const completeOnboarding = async () => {
+    if (!state.user) return;
+    try {
+      const data = await api.updateUser(state.user.id, { hasCompletedOnboarding: true });
+      dispatch({ type: 'SET_USER', payload: { ...state.user, ...data, hasCompletedOnboarding: true } });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleUserStatus = async (id) => {
+    try {
+      const user = state.users.find(u => u.id === id);
+      const data = await api.updateUser(id, { isActive: !user.isActive });
+      await fetchUsers();
+      return data;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  };
+
+  const sendEmailCode = async (email) => {
+    dispatch({ type: 'LOADING', payload: true });
+    try {
+      await api.sendEmailCode(email);
+      dispatch({ type: 'LOADING', payload: false });
+      return { success: true };
+    } catch (err) {
+      dispatch({ type: 'LOADING', payload: false });
+      return { success: false, error: err.message };
+    }
+  };
+
+  const verifyEmailCode = async (email, code) => {
+    dispatch({ type: 'LOADING', payload: true });
+    try {
+      const data = await api.verifyEmailCode(email, code);
+      if (data.user) dispatch({ type: 'SET_USER', payload: data.user });
+      return { success: true };
+    } catch (err) {
+      dispatch({ type: 'LOADING', payload: false });
+      return { success: false, error: err.message };
+    }
+  };
+
+return (
+  <AuthContext.Provider
+    value={{
+      ...state,
+      login,
+      signUp,
+      logout,
+      fetchUsers,
+      addUser,
+      updateUser,
+      deleteUser,
+      isAuthenticated,      // from main
+      isAdmin,              // from both
+      needsOnboarding,      // from codex branch
+      completeOnboarding,   // from codex branch
+      toggleUserStatus,     // from codex branch
+      sendEmailCode,        // from codex branch
+      verifyEmailCode,      // from codex branch
+    }}
+  >
+    {children}
+  </AuthContext.Provider>
+);
+
   );
 }
 
