@@ -135,20 +135,3 @@ prospertrack/
 
 ## License
 This project is proprietary software. All rights reserved.
-
-/               project root
-├── server.js            Express API
-├── migrations/          SQL migration scripts
-├── public/              Static assets
-├── src/                 React source code
-│   ├── components/
-│   ├── common/
-│   ├── context/
-│   ├── lib/
-│   ├── App.jsx
-│   └── main.jsx
-├── index.html
-├── package.json
-└── vite.config.js
-```
-main
