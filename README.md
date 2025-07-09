@@ -1,56 +1,37 @@
-# ProsperTrack™ Financial Analysis Platform
+# ProsperTrack Financial Analysis Platform
 
-ProsperTrack™ is a comprehensive financial analysis platform designed for financial professionals to manage clients, create financial analyses, generate reports, and provide financial planning tools.
+ProsperTrack is a financial planning tool built with a React frontend, an Express backend using Clerk for authentication, and a Neon Postgres database.
 
-## Features
+## Backend
 
-- **Client Management**: Create and manage client profiles with detailed information
-- **Financial Analysis**: Perform comprehensive financial analyses for clients
-- **Report Generation**: Generate professional PDF reports
-- **Financial Tools**: Use calculators for life insurance needs and debt stacking strategies
-- **User Management**: Admin panel for managing users and permissions
-- **Responsive Design**: Works on desktop and mobile devices
+The API defined in `server.js` uses Express and `@clerk/clerk-sdk-node` for user authentication. It connects to Postgres via `pg` and exposes endpoints for user, client and analysis management.
 
-## Tech Stack
+### Available Endpoints
 
-- **Frontend**: React, Tailwind CSS, Framer Motion
-- **Database**: Neon PostgreSQL
-- **PDF Generation**: React-PDF
-- **Charts**: ECharts
-- **Authentication**: Custom authentication via Express backend
+- `POST /auth/signup` – register a new user
+- `POST /auth/login` – log in with email and password
+- `GET /users` – list all users (auth required)
+- `POST /users` – create a user (auth required)
+- `PUT /users/:id` – update a user
+- `DELETE /users/:id` – delete a user
+- `GET /clients` – list the current user's clients
+- `POST /clients` – create a client
+- `PUT /clients/:id` – update a client
+- `DELETE /clients/:id` – remove a client
+- `GET /analyses` – list analyses for the current user
+- `POST /analyses` – create an analysis
+- `PUT /analyses/:id` – update an analysis
+- `DELETE /analyses/:id` – delete an analysis
 
-## Installation
+## Frontend
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/prospertrack.git
-cd prospertrack
-```
+The frontend is built with React and Vite and styled with Tailwind CSS. Development uses the Vite dev server and the app is bundled using `vite build`.
 
-2. Install dependencies:
-```bash
-npm install
-```
-   Run this command before executing `npm run lint` so that development
-   dependencies like `@eslint/js` are available.
+## Database
 
-3. Create a `.env` file in the root directory based on `.env.example` and add your credentials:
-```
-VITE_API_URL=http://localhost:3000
+All persistent data lives in a Neon Postgres instance. Schema and seed data are defined in `migrations/initial.sql`.
 
-VITE_QUEST_APIKEY=your-quest-api-key
-VITE_QUEST_ENTITYID=your-quest-entity-id
-VITE_QUEST_API_TYPE=PRODUCTION
-VITE_QUEST_ONBOARDING_QUESTID=your-onboarding-quest-id
-VITE_GET_STARTED_QUESTID=your-get-started-quest-id
-VITE_QUEST_USER_ID=your-quest-user-id
-VITE_QUEST_TOKEN=your-quest-token
-```
-
-For database access, you can either set the individual `PGHOST`, `PGPORT`,
-`PGUSER`, `PGPASSWORD` and `PGDATABASE` variables or provide a single
-`NETLIFY_DATABASE_URL` (or `DATABASE_URL`) connection string.
-
+codex/keep-initial.sql-as-authoritative-migration
 ## Database Setup
 
 1. Provision a Neon PostgreSQL database.
@@ -62,42 +43,63 @@ This script creates the required tables and seed demo users used by the app.
 
 ## Running the Application
 
-Start the development server:
+## Installation
+main
+
+1. Clone the repository and install dependencies:
+   ```bash
+   git clone <repo-url>
+   cd prospertrack
+   npm install
+   ```
+2. Create a `.env` file based on `.env.example` and configure the variables:
+   ```bash
+   VITE_API_URL=http://localhost:3000
+   VITE_QUEST_APIKEY=your-quest-api-key
+   VITE_QUEST_ENTITYID=your-quest-entity-id
+   VITE_QUEST_API_TYPE=PRODUCTION
+   VITE_QUEST_ONBOARDING_QUESTID=your-onboarding-quest-id
+   VITE_GET_STARTED_QUESTID=your-get-started-quest-id
+   VITE_QUEST_USER_ID=your-quest-user-id
+   VITE_QUEST_TOKEN=your-quest-token
+   NETLIFY_DATABASE_URL=
+   PGHOST=localhost
+   PGPORT=5432
+   PGUSER=postgres
+   PGPASSWORD=password
+   PGDATABASE=prospertrack
+   CLERK_PUBLISHABLE_KEY=pk_test_aW1tb3J0YWwtc3RhZy00MC5jbGVyay5hY2NvdW50cy5kZXYk
+   VITE_CLERK_PUBLISHABLE_KEY=pk_test_aW1tb3J0YWwtc3RhZy00MC5jbGVyay5hY2NvdW50cy5kZXYk
+   CLERK_SECRET_KEY=sk_test_UeVliIA2wI0NcdX8f7XqODUGopXhOQFUyfPjeQ73un
+   ```
+3. Provision a Neon Postgres database and run the migration script:
+   ```bash
+   psql $DATABASE_URL -f migrations/initial.sql
+   ```
+
+## Development
+
+Start the API server:
+```bash
+npm run server
+```
+In a separate terminal start the frontend:
 ```bash
 npm run dev
 ```
 
-The application will be available at http://localhost:5173
+The application will be available at `http://localhost:5173`.
 
-## Building for Production
-
+To create a production build run:
 ```bash
 npm run build
 ```
-
-The build output will be in the `dist` folder, which can be deployed to any static hosting service.
-
-## Linting
-
-Before running the linter, make sure all dependencies are installed:
-```bash
-npm install
-```
-This installs dev dependencies such as `@eslint/js`. Then execute:
-```bash
-npm run lint
-```
-
-## Demo Credentials
-
-For testing purposes, you can use these demo accounts:
-
-- **Admin**: sebasrodus+admin@gmail.com / admin1234
-- **Advisor**: advisor@prospertrack.com / advisor123
+The optimized output is written to the `dist` directory.
 
 ## Project Structure
 
 ```
+codex/keep-initial.sql-as-authoritative-migration
 prospertrack/
 ├── public/               # Public assets
 ├── src/
@@ -124,3 +126,20 @@ prospertrack/
 
 ## License
 This project is proprietary software. All rights reserved.
+
+/               project root
+├── server.js            Express API
+├── migrations/          SQL migration scripts
+├── public/              Static assets
+├── src/                 React source code
+│   ├── components/
+│   ├── common/
+│   ├── context/
+│   ├── lib/
+│   ├── App.jsx
+│   └── main.jsx
+├── index.html
+├── package.json
+└── vite.config.js
+```
+main
