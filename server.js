@@ -177,7 +177,6 @@ app.get('/clients', async (req, res) => {
 
 app.post('/clients', async (req, res) => {
   const {
-    id,
     user_id,
     first_name,
     last_name,
@@ -203,11 +202,10 @@ app.post('/clients', async (req, res) => {
   try {
     const userId = user_id || req.auth.userId;
     const { rows } = await pool.query(
-      `INSERT INTO clients (id,user_id,first_name,last_name,email,phone,address,city,state,zip_code,date_of_birth,occupation,employer,marital_status,spouse_first_name,spouse_last_name,spouse_date_of_birth,spouse_occupation,spouse_employer,spouse_phone,spouse_email,children)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+      `INSERT INTO clients (user_id,first_name,last_name,email,phone,address,city,state,zip_code,date_of_birth,occupation,employer,marital_status,spouse_first_name,spouse_last_name,spouse_date_of_birth,spouse_occupation,spouse_employer,spouse_phone,spouse_email,children)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
        RETURNING *`,
       [
-        id,
         userId,
         first_name,
         last_name,
