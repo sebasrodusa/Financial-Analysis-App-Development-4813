@@ -8,6 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users_pt2024 (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
+  clerk_id TEXT UNIQUE,
   password_hash TEXT NOT NULL,
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
@@ -57,15 +58,17 @@ CREATE POLICY "Admin can view all users"
 
 -- Initial admin user (password: admin1234)
 INSERT INTO users_pt2024 (
-  email, 
-  password_hash, 
-  first_name, 
-  last_name, 
-  role, 
-  is_active, 
+  email,
+  clerk_id,
+  password_hash,
+  first_name,
+  last_name,
+  role,
+  is_active,
   has_completed_onboarding
   ) VALUES (
   'sebasrodus+admin@gmail.com',
+  'admin_clerk_id',
   '$2b$10$XdR5Mfl6nA8CXHGXE1Uqz.SjVoam.nWjolSbQpIy5keN5XvbIlGk6', -- hashed 'admin1234'
   'Admin',
   'User',
@@ -82,15 +85,17 @@ ON CONFLICT DO NOTHING;
 
 -- Initial advisor user (password: advisor123)
 INSERT INTO users_pt2024 (
-  email, 
-  password_hash, 
-  first_name, 
-  last_name, 
-  role, 
-  is_active, 
+  email,
+  clerk_id,
+  password_hash,
+  first_name,
+  last_name,
+  role,
+  is_active,
   has_completed_onboarding
 ) VALUES (
   'advisor@prospertrack.com',
+  'advisor_clerk_id',
   '$2b$10$vhj5TgZGHfYmHxpJ0A6FYOS8J.xZLBXKJdS7CZzHt1Zi3.qWShcUO', -- hashed 'advisor123'
   'Financial',
   'Advisor',

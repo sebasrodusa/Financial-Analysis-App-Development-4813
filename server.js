@@ -3,7 +3,11 @@ import dotenv from 'dotenv';
 import pkg from 'pg';
 import bcrypt from 'bcryptjs';
 import cors from 'cors';
-import { ClerkExpressRequireAuth, ClerkExpressWithAuth } from '@clerk/clerk-sdk-node';
+import {
+  ClerkExpressRequireAuth,
+  ClerkExpressWithAuth,
+  clerkClient,
+} from '@clerk/clerk-sdk-node';
 
 const { Pool } = pkg;
 
@@ -69,6 +73,39 @@ const allowedAnalysisColumns = [
   'net_worth',
 ];
 
+async function getOrCreateUserByClerkId(clerkId) {
+  const { rows } = await pool.query(
+    'SELECT id FROM users_pt2024 WHERE clerk_id=$1',
+    [clerkId]
+  );
+  if (rows.length) return rows[0].id;
+
+  let firstName = 'First';
+  let lastName = 'Last';
+  let email = null;
+  try {
+    const clerkUser = await clerkClient.users.getUser(clerkId);
+    firstName = clerkUser.firstName || firstName;
+    lastName = clerkUser.lastName || lastName;
+    email =
+      (clerkUser.emailAddresses &&
+        clerkUser.emailAddresses[0] &&
+        clerkUser.emailAddresses[0].emailAddress) ||
+      null;
+  } catch (err) {
+    console.error('Clerk API error:', err);
+  }
+
+  const hash = await bcrypt.hash('placeholder', 10);
+  const { rows: inserted } = await pool.query(
+    `INSERT INTO users_pt2024 (email, clerk_id, password_hash, first_name, last_name, role)
+     VALUES ($1, $2, $3, $4, $5, 'financial_professional')
+     RETURNING id`,
+    [email, clerkId, hash, firstName, lastName]
+  );
+  return inserted[0].id;
+}
+
 // Authentication
 app.post('/auth/signup', async (req, res) => {
   const { email, password, firstName, lastName } = req.body;
@@ -110,7 +147,7 @@ app.use('/users', ClerkExpressRequireAuth());
 app.get('/users', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id,email,first_name,last_name,role,is_active FROM users_pt2024'
+      'SELECT id, clerk_id, email, first_name, last_name, role, is_active FROM users_pt2024'
     );
     res.json(rows);
   } catch (err) {
@@ -120,14 +157,14 @@ app.get('/users', async (req, res) => {
 });
 
 app.post('/users', async (req, res) => {
-  const { email, password, firstName, lastName, role } = req.body;
+  const { email, password, firstName, lastName, role, clerkId } = req.body;
   try {
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
-      `INSERT INTO users_pt2024 (email,password_hash,first_name,last_name,role)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id,email,first_name,last_name,role,is_active`,
-      [email, hash, firstName, lastName, role]
+      `INSERT INTO users_pt2024 (email, clerk_id, password_hash, first_name, last_name, role)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING id, clerk_id, email, first_name, last_name, role, is_active`,
+      [email, clerkId, hash, firstName, lastName, role]
     );
     res.json(rows[0]);
   } catch (err) {
@@ -138,12 +175,12 @@ app.post('/users', async (req, res) => {
 
 app.put('/users/:id', async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, role, isActive } = req.body;
+  const { firstName, lastName, role, isActive, clerkId } = req.body;
   try {
     const { rows } = await pool.query(
-      `UPDATE users_pt2024 SET first_name=$1,last_name=$2,role=$3,is_active=$4,updated_at=NOW()
-       WHERE id=$5 RETURNING id,email,first_name,last_name,role,is_active`,
-      [firstName, lastName, role, isActive, id]
+      `UPDATE users_pt2024 SET first_name=$1,last_name=$2,role=$3,is_active=$4,clerk_id=$5,updated_at=NOW()
+       WHERE id=$6 RETURNING id, clerk_id, email, first_name, last_name, role, is_active`,
+      [firstName, lastName, role, isActive, clerkId, id]
     );
     res.json(rows[0]);
   } catch (err) {
@@ -166,8 +203,8 @@ app.delete('/users/:id', async (req, res) => {
 app.use('/clients', ClerkExpressRequireAuth());
 app.get('/clients', async (req, res) => {
   try {
-    const { userId } = req.auth;
-    const { rows } = await pool.query('SELECT * FROM clients WHERE user_id=$1', [userId]);
+    const dbUserId = await getOrCreateUserByClerkId(req.auth.userId);
+    const { rows } = await pool.query('SELECT * FROM clients WHERE user_id=$1', [dbUserId]);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -177,7 +214,6 @@ app.get('/clients', async (req, res) => {
 
 app.post('/clients', async (req, res) => {
   const {
-    user_id,
     first_name,
     last_name,
     email,
@@ -200,13 +236,13 @@ app.post('/clients', async (req, res) => {
     children,
   } = req.body;
   try {
-    const userId = user_id || req.auth.userId;
+    const dbUserId = await getOrCreateUserByClerkId(req.auth.userId);
     const { rows } = await pool.query(
       `INSERT INTO clients (user_id,first_name,last_name,email,phone,address,city,state,zip_code,date_of_birth,occupation,employer,marital_status,spouse_first_name,spouse_last_name,spouse_date_of_birth,spouse_occupation,spouse_employer,spouse_phone,spouse_email,children)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
        RETURNING *`,
       [
-        userId,
+        dbUserId,
         first_name,
         last_name,
         email,
@@ -272,12 +308,12 @@ app.delete('/clients/:id', async (req, res) => {
 app.use('/analyses', ClerkExpressRequireAuth());
 app.get('/analyses', async (req, res) => {
   try {
-    const { userId } = req.auth;
+    const dbUserId = await getOrCreateUserByClerkId(req.auth.userId);
     const { rows } = await pool.query(
       `SELECT fa.* FROM financial_analyses fa
        JOIN clients c ON fa.client_id = c.id
        WHERE c.user_id = $1`,
-      [userId]
+      [dbUserId]
     );
     res.json(rows);
   } catch (err) {

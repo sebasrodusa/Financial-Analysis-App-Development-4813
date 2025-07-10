@@ -8,6 +8,8 @@ Email-based code verification has been removed; all sign-in flows now rely on Cl
 
 The API defined in `server.js` uses Express and `@clerk/clerk-sdk-node` for user authentication. It connects to Postgres via `pg` and exposes endpoints for user, client and analysis management.
 
+On each authenticated request the backend looks up the corresponding row in `users_pt2024` using `clerk_id = req.auth.userId`. If no match is found a new user record is created automatically using the data returned by Clerk. The UUID from this record is then used when storing clients or analyses.
+
 ### Available Endpoints
 
 - `POST /auth/signup` – register a new user
